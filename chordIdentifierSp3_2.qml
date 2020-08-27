@@ -1,6 +1,9 @@
 //=============================================================================
 //  MuseScore - Chord Identifier Plugin 
-// Chgd. debugged fixed and new-code added by: Ziya Mete Demircan 2019/04/09 23:02
+//  Chgd. debugged fixed and new-code added by: Ziya Mete Demircan 2019/04/09 23:02
+//  Add option to use full note duration  for identification: Mendy Mendelsohn, August 2020
+//  ToDo: - Mark incomplete triads (with 3 voices and above)
+//        - Run through segments using segment.next rather than cursor.next (which misses segments that are not on selected track)
 //
 //  Copyright (C) 2016 Emmanuel Roussel - https://github.com/rousselmanu/msc_plugins
 //
@@ -47,7 +50,8 @@ MuseScore {
     property variant displayChordMode   : 0  //0: Normal chord C  F7  Gm  //1: Roman Chord level   Ⅳ
     property variant displayChordColor  : 0  //0: disable ,1 enable
     property variant inversion_notation : 0 //set to 1: bass note is specified after a / like that: C/E for first inversion C chord.
-    property variant display_bass_note  : 0 //set to 1: bass note is specified after a / like that: C/E for first inversion C chord.
+    property variant display_bass_note  : 1 //set to 1: bass note is specified after a / like that: C/E for first inversion C chord.
+    property variant full_note_duration : 0 //set to 1 to consider full duration of note in chords.
 
    property variant black : "#000000"
     property variant colorOth3 : "#C080C0"    //color: ext.:(9/11/13)
@@ -477,22 +481,38 @@ MuseScore {
         return null;
     } 
     
-    function getAllCurrentNotes(cursor, startStaff, endStaff){
+    function getAllCurrentNotes(cursor, startStaff, endStaff, prev_chord){
         var full_chord = [];
         var idx_note=0;
+		console.log('>>>>> tick ' + cursor.tick);
         for (var staff = endStaff; staff >= startStaff; staff--) {
             for (var voice = 8; voice >=0; voice--) { //Ziya var voice = 3 New! var voice = 6
                 cursor.voice = voice;
                 cursor.staffIdx = staff;
+//                if (cursor.element && cursor.element.type != Element.CHORD)
+//					console.log('     IGNORE '+cursor.element.userName()+' s'+staff+' v'+voice+'   duration:'+cursor.element.duration.ticks);
                 if (cursor.element && cursor.element.type == Element.CHORD) {
+//					console.log('     >> s'+staff+' v'+voice+'   duration:'+cursor.element.duration.ticks);
                     var notes = cursor.element.notes;
                     for (var i = 0; i < notes.length; i++) {
                           full_chord[idx_note]=notes[i];
                           idx_note++;
+//						  console.log('       >> pitch:' + notes[i].pitch);
                     }
                 }
             }
         }
+		if (prev_chord) {
+//			console.log('   >> prev');
+			for (var i = 0; i < prev_chord.length; i++) {
+				var note = prev_chord[i];
+				var excl = (note.parent.parent.tick + note.parent.duration.ticks > cursor.tick ? "!!!" : "");
+				if (excl && full_note_duration)
+					full_chord[idx_note++] = note;
+//				console.log(excl+'     >> tick:'+note.parent.parent.tick+' len'+note.parent.duration.ticks+' p'+note.pitch);
+			}
+		}
+		
         return full_chord;
     }
     
@@ -595,7 +615,7 @@ MuseScore {
         while ((segment=cursor.segment) && (fullScore || cursor.tick < endTick)) { //loop through the selection
             // FIRST we get all notes on current position of the cursor, for all voices and all staves.
             var prev_full_chord = full_chord;
-            var full_chord = getAllCurrentNotes(cursor, startStaff, endStaff);
+            var full_chord = getAllCurrentNotes(cursor, startStaff, endStaff, full_chord);
             
             if(full_chord.length>0){ //More than 0 notes found!
                 console.log('------');
@@ -706,6 +726,15 @@ MuseScore {
       }
     }
 
+        for (var i=0; i < durationMode.buttonList.length; i++ ) {
+      var s = durationMode.buttonList[i];
+      if (s.checked) {
+          full_note_duration=durationMode.buttonList.length-1-i;
+          break;
+      }
+    }
+	console.log('full duration = ' + full_note_duration);
+
 //    for (var i=0; i < newScoreMode.buttonList.length; i++ ) {
 //      var s = newScoreMode.buttonList[i];
 //      if (s.checked) {
@@ -774,11 +803,22 @@ MuseScore {
         ]
       }
 
+      RowLayout {
+        id: durationMode
+        spacing: 20
+        Text  { text:  "  Use Full Note Duration:"; font.bold: true }
+        property list<RadioButton> buttonList: [
+          RadioButton { parent: durationMode;text: "Yes"; exclusiveGroup: rowF },
+          RadioButton { parent: durationMode;text: "No"; exclusiveGroup: rowF; checked: true }
+        ]
+      }
+
 
       ExclusiveGroup { id: rowB; onCurrentChanged: { showVals(); }}
       ExclusiveGroup { id: rowC; onCurrentChanged: { showVals(); }}
       ExclusiveGroup { id: rowD; onCurrentChanged: { showVals(); }}
       ExclusiveGroup { id: rowE; onCurrentChanged: { showVals(); }}
+      ExclusiveGroup { id: rowF; onCurrentChanged: { showVals(); }}
   }
 
 
