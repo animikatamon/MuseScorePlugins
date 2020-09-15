@@ -492,12 +492,12 @@ MuseScore {
 //                if (cursor.element && cursor.element.type != Element.CHORD)
 //					console.log('     IGNORE '+cursor.element.userName()+' s'+staff+' v'+voice+'   duration:'+cursor.element.duration.ticks);
                 if (cursor.element && cursor.element.type == Element.CHORD) {
-//					console.log('     >> s'+staff+' v'+voice+'   duration:'+cursor.element.duration.ticks);
+					console.log('     >> s'+staff+' v'+voice+'   duration:'+cursor.element.duration.ticks);
                     var notes = cursor.element.notes;
                     for (var i = 0; i < notes.length; i++) {
                           full_chord[idx_note]=notes[i];
                           idx_note++;
-//						  console.log('       >> pitch:' + notes[i].pitch);
+						  console.log('       >> pitch:' + notes[i].pitch);
                     }
                 }
             }
@@ -535,7 +535,7 @@ MuseScore {
     function next_note(cursor, startStaff, endStaff){
         var cur_time=cursor.tick;
         console.log('cur_time: ' + cur_time);
-        var next_time=-1;
+        var next_time=10000000;
         var cur_staff=startStaff;
         for (var staff = startStaff; staff <= endStaff; staff++) {
             //for (var voice = 0; voice < 4; voice++) {
