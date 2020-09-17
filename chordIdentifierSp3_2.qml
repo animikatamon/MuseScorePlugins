@@ -485,19 +485,29 @@ MuseScore {
     
     function getAllCurrentNotes(cursor, startStaff, endStaff, onlySelected, prev_chord){
         var full_chord = [];
-		console.log('>>>>> tick ' + cursor.tick);
+        var tickLogged = false;
+		// console.log('>>>>> tick ' + cursor.tick);
         for (var staff = endStaff; staff >= startStaff; staff--) {
             for (var voice = 3; voice >=0; voice--) { //Ziya var voice = 3 New! var voice = 6
+                var trackLogged = false;
                 cursor.voice = voice;
                 cursor.staffIdx = staff;
 //                if (cursor.element && cursor.element.type != Element.CHORD)
 //					console.log('     IGNORE '+cursor.element.userName()+' s'+staff+' v'+voice+'   duration:'+cursor.element.duration.ticks);
                 if (cursor.element && cursor.element.type == Element.CHORD) {
-					console.log('     >> s'+staff+' v'+voice+'   duration:'+cursor.element.duration.ticks);
+					// console.log('     >> s'+staff+' v'+voice+'   duration:'+cursor.element.duration.ticks);
                     var notes = cursor.element.notes;
                     for (var i = 0; i < notes.length; i++) {
                         if (onlySelected && !notes[i].selected)
                             continue;
+                        if ( !tickLogged ) {
+                            console.log('>>>>> tick ' + cursor.tick);
+                            tickLogged = true;
+                        }
+                        if ( !trackLogged ) {
+                            console.log('     >> s'+staff+' v'+voice+'   duration:'+cursor.element.duration.ticks);
+                            trackLogged = true;
+                        }
                         full_chord.push(notes[i]);
 						console.log('       >> pitch:' + notes[i].pitch);
                     }
@@ -567,11 +577,11 @@ MuseScore {
         if ( !seg )
             return false;
         while(seg = seg.next) {
-            console.log('   next seg: tick='+seg.tick);
+            // console.log('   next seg: tick='+seg.tick);
             var tr;
             for (tr = 0; tr < curScore.ntracks; tr++) {
                 var el = seg.elementAt(tr);
-                if (el) console.log('      track#'+tr+' of type '+el.userName());
+                // if (el) console.log('      track#'+tr+' of type '+el.userName());
                 if (el && el.type == elemType)
                     break;
             }
@@ -581,10 +591,11 @@ MuseScore {
                     cursor.next();
                 if (cursor.tick > seg.tick)
                     console.log('BUG cursor('+cursor.tick+') went beyond seg('+seg.tick+') !!');
-                console.log('   next cursor seg: tick='+cursor.segment.tick+' of type '+cursor.segment.userName());
+                // console.log('   next cursor seg: tick='+cursor.segment.tick+' of type '+cursor.segment.userName());
                 return true;
-            } else
-                console.log('      required element not found');
+            } else {
+                // console.log('      required element not found');
+            }
         }
         if ( !seg ) {
             // reached end without finding Element Type
