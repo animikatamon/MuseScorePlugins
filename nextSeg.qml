@@ -1,5 +1,5 @@
 //=============================================================================
-//  MuseScore
+//  Plugin for MuseScore
 //  Music Composition & Notation
 //
 //  Copyright (C) 2020 Mendy Mendelsohn
@@ -8,8 +8,6 @@
 //  it under the terms of the GNU General Public License version 2
 //  as published by the Free Software Foundation and appearing in
 //  the file LICENCE.GPL
-//
-//  WHAT ABOUT selected PROPERTY?
 //=============================================================================
 
 import QtQuick 2.0
@@ -19,10 +17,10 @@ MuseScore {
       version:  "1.1"
       description: "Show all consequtive chord segments in selection, regardless of staff/voice\n"
                     + "  (using only start and end of selection, i.e. ignoring partial staff selection)"
-                    + "  ==> test plugin for closestNextElement(cursor, CHORD)"
+                    + "  ==> test plugin for setToClosestNextElement(cursor, CHORD)"
       menuPath: "Plugins.printSegmentsOrderLeft2RightInAnyTrack"
       
-    function closestNextElement(cursor, elemType) {
+    function setToClosestNextElement(cursor, elemType) {
         // move cursor to closest next segment with Element elemType, whatever the track
         var seg = cursor.segment;
         if ( !seg )
@@ -96,7 +94,7 @@ MuseScore {
                             console.log('>>  track#' + tr + '  chord: ' + s);
                     }
                 }
-                if ( !closestNextElement(cursor, Element.CHORD) )
+                if ( !setToClosestNextElement(cursor, Element.CHORD) )
                     break;
             }
             Qt.quit();
