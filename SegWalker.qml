@@ -95,7 +95,7 @@ MuseScore {
 				if (topEl.type == Element.SEGMENT) {
 					var seg = topEl;
 					console.log('tick ' + seg.tick /*+ visBool(seg.selected, ' - selected')*/);
-					for (var tr = 15; tr >= 0; tr--) {
+					for (var tr = curScore.ntracks - 1; tr >= 0; tr--) {
 						var el = seg.elementAt(tr);
 						if ( !el ) continue;
 						console.log('   element type = ' + el.userName() /*+ visBool(el.selected, ' - selected')*/);
@@ -109,14 +109,15 @@ MuseScore {
 							if (s)
 								console.log('>>> track#' + tr + '  chord: ' + s);
 						} else if (el.type == Element.KEYSIG) {
-							var defs = 0, ks = Object.keys(el);
+							console.log('>>> KeySig key = ' + el.key);
+/*							var defs = 0, ks = Object.keys(el);
 							for (var k = 0; k < ks.length; k++) {
 								if (el[ks[k]] != undefined) {
 									defs++;
 									console.log('   ' + ks[k] + ':' + el[ks[k]]);
 								}
 							}
-							console.log('>>> KeySig #defs = ' + defs + ' / #keys = ' + ks.length);
+							console.log('>>> KeySig #defs = ' + defs + ' / #keys = ' + ks.length);*/
 						}
 					}
 				} else if (topEl.type == Element.NOTE) {
