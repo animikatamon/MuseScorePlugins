@@ -2,21 +2,19 @@
 //  MuseScore - Chord Identifier Plugin 
 //  Chgd. debugged fixed and new-code added by: Ziya Mete Demircan 2019/04/09 23:02
 //  Add option to use entire note duration for identification: Mendy Mendelsohn, Aug-Sep 2020
-//  Suggestion: - Mark incomplete triads (with 3 voices and above)
-//              - Better recognize minor key (add sub-option for Minor)
-//        - Remember user selection of parameters
-//        - Refer to my repository in this headnote
+//  Suggestions: - Mark incomplete triads (with 3 voices and above)
+//               - Better recognize minor key (add sub-option for Minor?)
 //
-//  Copyright (C) 2016 Emmanuel Roussel - https://github.com/rousselmanu/msc_plugins
-//
+//  Code Repository & Documentation: https://github.com/AniMikatamon/MuseScorePlugins
+//  Support: https://github.com/AniMikatamon/MuseScorePlugins/issues
+//  
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License version 2
 //  as published by the Free Software Foundation and appearing in
 //  the file LICENSE
 //
-//  Documentation: https://github.com/rousselmanu/msc_plugins
-//  Support: https://github.com/rousselmanu/msc_plugins/issues
-//  
+//  Prior contributors:
+//  Copyright (C) 2016 Emmanuel Roussel - https://github.com/rousselmanu/msc_plugins
 //  I started this plugin as an improvement of the "Find Harmonies" plugin by Andresn 
 //      (https://github.com/andresn/standard-notation-experiments/tree/master/MuseScore/plugins/findharmonies)
 //      itself being an enhanced version of "findharmony" by Merte (http://musescore.org/en/project/findharmony)
@@ -33,6 +31,7 @@ import QtQuick 2.0
 import QtQuick.Layouts 1.0
 import QtQuick.Controls 1.0
 import QtQuick.Dialogs 1.0
+import Qt.labs.settings 1.0
 
 MuseScore {
     menuPath: "Plugins.Chords.Chord Identifier (Specialized3_2)"
@@ -48,12 +47,15 @@ MuseScore {
     height: 260
     id: chordDialog
     
-
-    property variant displayChordMode   : 0 //0: Normal chord C  F7  Gm  //1: Roman Chord level   Ⅳ
-    property variant displayChordColor  : 0 //0: disable ,1 enable
-    property variant inversion_notation : 0 //set to 1: bass note is specified after a / like that: C/E for first inversion C chord.
-    property variant display_bass_note  : 1 //set to 1: bass note is specified after a / like that: C/E for first inversion C chord.
-    property variant entire_note_duration : 1 //set to 1 to consider full duration of note in chords.
+    Settings {
+        id: settings
+        category: "t2"
+        property int displayChordMode     : 0 //0: Normal chord C  F7  Gm  //1: Roman Chord level   Ⅳ
+        property int displayChordColor    : 0 //0: disable ,1 enable
+        property int inversion_notation   : 0 //set to 1: bass note is specified after a / like that: C/E for first inversion C chord.
+        property int display_bass_note    : 1 //set to 1: bass note is specified after a / like that: C/E for first inversion C chord.
+        property int entire_note_duration : 1 //set to 1 to consider full duration of note in chords.
+    }
 
     property variant black     : "#000000"
     property variant colorOth3 : "#C080C0"    //color: ext.:(9/11/13)
@@ -68,8 +70,15 @@ MuseScore {
     property variant green     : "#00ff00"
     property variant blue      : "#0000ff"
 
+    onRun: {
+        //  MM: Is this the right place to do initializations?
+        rowB.current = objFromIndex(inversionMode.buttonList, settings.inversion_notation) 
+        rowC.current = objFromIndex(symbolMode.buttonList, settings.displayChordMode) 
+        rowD.current = objFromIndex(bassMode.buttonList, settings.display_bass_note) 
+        rowE.current = objFromIndex(chordColorMode.buttonList, settings.displayChordColor) 
+        rowF.current = objFromIndex(durationMode.buttonList, settings.entire_note_duration)
+    }
 
-    
     // ---------- get note name from TPC (Tonal Pitch Class):
     function getNoteName(note_tpc){ 
         var notename = "";
@@ -179,14 +188,14 @@ MuseScore {
 //        var DISPLAY_BASS_NOTE = 0; //set to 1: bass note is specified after a / like that: C/E for first inversion C chord.
  
         //Standard notation for inversions:
-        if(inversion_notation===1){
+        if(settings.inversion_notation===1){
             var inversions = ["", " \u00B9", " \u00B2"," \u00B3"," \u2074"," \u2075"," \u2076"," \u2077"," \u2078"," \u2079"]; // unicode for superscript "1", "2", "3" (e.g. to represent C Major first, or second inversion)
             var inversions_7th = inversions;
 			var inversions_9th  = inversions;
 			var inversions_11th = inversions;
 			var inversions_13th = inversions;
 
-        }else if(inversion_notation===2){//Figured bass of inversions:
+        }else if(settings.inversion_notation===2){//Figured bass of inversions:
             var inversions = ['', ' \u2076', ' \u2076\u2084','','','','','','',''];
             var inversions_7th = [' \u2077', ' \u2076\u2085', ' \u2074\u2083', ' \u2074\u2082', ' \u2077-\u2074', ' \u2077-\u2075', ' \u2077-\u2076', ' \u2077-\u2077', ' \u2077-\u2078', ' \u2077-\u2079'];
 			var inversions_9th = [' \u2079', ' inv\u00B9', ' inv\u00B2', ' inv\u00B3',' inv\u2074',' inv\u2075',' inv\u2076',' inv\u2077',' inv\u2078',' inv\u2079'];
@@ -344,7 +353,7 @@ MuseScore {
         }else{
             console.log('No chord found');
         }
-        if (displayChordColor) {
+        if (settings.displayChordColor) {
         var colorize=true;
         } else {        
         var colorize=false;    
@@ -433,7 +442,7 @@ MuseScore {
             
             // Commented: Both are fixed now -Ziya.
             
-            if (inversion_notation===1 || inversion_notation===2 ) {
+            if (settings.inversion_notation===1 || settings.inversion_notation===2 ) {
             if(seventhchord == 0){ //we have a triad:
                 chordName += inversions[inv]; //no inversions for this version.
                 chordNameRoman += inversions[inv]; //no inversions for this version.
@@ -455,13 +464,13 @@ MuseScore {
             }
             
            // if(bassMode===1 && inv>0){
-             if(display_bass_note==1 && inv>0){
+             if(settings.display_bass_note==1 && inv>0){
                 chordName+="/"+getNoteName(bass.tpc);
             }
             
-            if(displayChordMode === 1 ) {
+            if(settings.displayChordMode === 1 ) {
                 chordName = chordNameRoman;
-            } else if(displayChordMode === 2 ) {
+            } else if(settings.displayChordMode === 2 ) {
                 chordName += " "+chordNameRoman
             }
         }
@@ -519,7 +528,7 @@ MuseScore {
 			for (var i = 0; i < prev_chord.length; i++) {
 				var note = prev_chord[i];
 				var excl = (note.parent.parent.tick + note.parent.duration.ticks > cursor.tick ? "!!!" : "");
-				if (excl && entire_note_duration)
+				if (excl && settings.entire_note_duration)
 					full_chord.push(note);
 //				console.log(excl+'     >> tick:'+note.parent.parent.tick+' len'+note.parent.duration.ticks+' p'+note.pitch);
 			}
@@ -729,7 +738,7 @@ MuseScore {
     } // end onRun
 
 
-  function showVals () {
+    function showVals () {   // MM: calcVals or findVals may be a better name for this func
 //    for (var i=0; i < chrodMeasure.buttonList.length; i++ ) {
 //      var s = chrodMeasure.buttonList[i];
 //      if (s.checked) {
@@ -746,11 +755,10 @@ MuseScore {
 //      }
 //    }
     
-    
     for (var i=0; i < symbolMode.buttonList.length; i++ ) {
       var s = symbolMode.buttonList[i];
       if (s.checked) {
-          displayChordMode=symbolMode.buttonList.length-1-i;
+          settings.displayChordMode=symbolMode.buttonList.length-1-i;
           break;
       }
     }
@@ -758,7 +766,7 @@ MuseScore {
     for (var i=0; i < bassMode.buttonList.length; i++ ) {
       var s = bassMode.buttonList[i];
       if (s.checked) {
-          display_bass_note=bassMode.buttonList.length-1-i;
+          settings.display_bass_note=bassMode.buttonList.length-1-i;
           break;
       }
     }
@@ -767,27 +775,27 @@ MuseScore {
     for (var i=0; i < chordColorMode.buttonList.length; i++ ) {
       var s = chordColorMode.buttonList[i];
       if (s.checked) {
-          displayChordColor=chordColorMode.buttonList.length-1-i;
+          settings.displayChordColor=chordColorMode.buttonList.length-1-i;
           break;
       }
     }
     
-        for (var i=0; i < inversionMode.buttonList.length; i++ ) {
+    for (var i=0; i < inversionMode.buttonList.length; i++ ) {
       var s = inversionMode.buttonList[i];
       if (s.checked) {
-          inversion_notation=inversionMode.buttonList.length-1-i;
+          settings.inversion_notation=inversionMode.buttonList.length-1-i;
           break;
       }
     }
 
-        for (var i=0; i < durationMode.buttonList.length; i++ ) {
+    for (var i=0; i < durationMode.buttonList.length; i++ ) {
       var s = durationMode.buttonList[i];
       if (s.checked) {
-          entire_note_duration=durationMode.buttonList.length-1-i;
+          settings.entire_note_duration=durationMode.buttonList.length-1-i;
           break;
       }
     }
-	console.log('use entire note duration = ' + entire_note_duration);
+	// console.log('use entire note duration = ' + entire_note_duration);
 
 //    for (var i=0; i < newScoreMode.buttonList.length; i++ ) {
 //      var s = newScoreMode.buttonList[i];
@@ -798,8 +806,21 @@ MuseScore {
 //    }
 
 
-  }
+    }
 
+/*      function getButtonIndex(buttons, text) { 
+            for (var i = 0; i < buttons.length; i++) {
+                  if (buttons[i].text == text) {
+                        console.log(i)
+                        return i;
+                  }
+            }
+            return -1;
+      }*/
+
+    function objFromIndex(list, index) {
+        return list[list.length-1-index]
+    }
 
   ColumnLayout {
       // Left: column of note names
@@ -820,8 +841,8 @@ MuseScore {
         spacing: 20
         Text  { text:  "  Symbol:"; font.bold: true }
         property list<RadioButton> buttonList: [
-          RadioButton { parent: symbolMode;text: "Roman"; exclusiveGroup: rowC ;},
-          RadioButton { parent: symbolMode;text: "Normal"; exclusiveGroup: rowC ;checked: true }
+          RadioButton { parent: symbolMode;text: "Roman"; exclusiveGroup: rowC },
+          RadioButton { parent: symbolMode;text: "Normal"; exclusiveGroup: rowC }
         ]
       }
 
@@ -831,7 +852,7 @@ MuseScore {
         Text  { text:  "  Bass:"; font.bold: true }
         property list<RadioButton> buttonList: [
           RadioButton { parent: bassMode;text: "Yes"; exclusiveGroup: rowD },
-          RadioButton { parent: bassMode;text: "No"; exclusiveGroup: rowD ;checked: true }
+          RadioButton { parent: bassMode;text: "No"; exclusiveGroup: rowD }
         ]
       }
 
@@ -841,7 +862,7 @@ MuseScore {
         Text  { text:  "  Highlight Chord Notes:"; font.bold: true }
         property list<RadioButton> buttonList: [
           RadioButton { parent: chordColorMode;text: "Yes"; exclusiveGroup: rowE },
-          RadioButton { parent: chordColorMode;text: "No"; exclusiveGroup: rowE ;checked: true }
+          RadioButton { parent: chordColorMode;text: "No"; exclusiveGroup: rowE }
 
         ]
       }
@@ -853,7 +874,7 @@ MuseScore {
         property list<RadioButton> buttonList: [
           RadioButton { parent: inversionMode;text: "Figured Bass"; exclusiveGroup: rowB },
           RadioButton { parent: inversionMode;text: "Normal"; exclusiveGroup: rowB },
-          RadioButton { parent: inversionMode;text: "No"; exclusiveGroup: rowB ;checked: true }
+          RadioButton { parent: inversionMode;text: "No"; exclusiveGroup: rowB }
         ]
       }
 
@@ -862,19 +883,17 @@ MuseScore {
         spacing: 20
         Text  { text:  "  Use Entire Note Duration:"; font.bold: true }
         property list<RadioButton> buttonList: [
-          RadioButton { parent: durationMode;text: "Yes"; exclusiveGroup: rowF; checked: true },
+          RadioButton { parent: durationMode;text: "Yes"; exclusiveGroup: rowF },
           RadioButton { parent: durationMode;text: "No"; exclusiveGroup: rowF }
         ]
       }
 
-
-      ExclusiveGroup { id: rowB; onCurrentChanged: { showVals(); }}
-      ExclusiveGroup { id: rowC; onCurrentChanged: { showVals(); }}
-      ExclusiveGroup { id: rowD; onCurrentChanged: { showVals(); }}
-      ExclusiveGroup { id: rowE; onCurrentChanged: { showVals(); }}
-      ExclusiveGroup { id: rowF; onCurrentChanged: { showVals(); }}
+      ExclusiveGroup { id: rowB }
+      ExclusiveGroup { id: rowC }
+      ExclusiveGroup { id: rowD }
+      ExclusiveGroup { id: rowE }
+      ExclusiveGroup { id: rowF }
   }
-
 
   Button {
     id: buttonCancel
@@ -890,8 +909,6 @@ MuseScore {
     }
   }
 
-
-
   Button {
     id: buttonOK
     text: qsTr("OK")
@@ -902,6 +919,7 @@ MuseScore {
     anchors.topMargin: 10
     anchors.bottomMargin: 10
     onClicked: {
+      showVals();
       curScore.startCmd();
       runsheet();
       curScore.endCmd();
