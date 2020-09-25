@@ -2,10 +2,10 @@
 //  MuseScore - Chord Identifier Plugin 
 //  Chgd. debugged fixed and new-code added by: Ziya Mete Demircan 2019/04/09 23:02
 //  Add option to use entire note duration for identification: Mendy Mendelsohn, Aug-Sep 2020
-//  ToDo: - Mark incomplete triads (with 3 voices and above)
-//        - Better recognize minor key (add sub-option for Minor)
-//        - Add min. requrired MS version! (MS method for checking?)
+//  Suggestion: - Mark incomplete triads (with 3 voices and above)
+//              - Better recognize minor key (add sub-option for Minor)
 //        - Remember user selection of parameters
+//        - Refer to my repository in this headnote
 //
 //  Copyright (C) 2016 Emmanuel Roussel - https://github.com/rousselmanu/msc_plugins
 //
@@ -55,7 +55,7 @@ MuseScore {
     property variant display_bass_note  : 1 //set to 1: bass note is specified after a / like that: C/E for first inversion C chord.
     property variant entire_note_duration : 1 //set to 1 to consider full duration of note in chords.
 
-   property variant black : "#000000"
+    property variant black     : "#000000"
     property variant colorOth3 : "#C080C0"    //color: ext.:(9/11/13)
     property variant colorOth2 : "#80C0C0"    //color: ext.:(9/11/13)
     property variant colorOth1 : "#4080C0"    //color: ext.:(9/11/13)
@@ -607,6 +607,12 @@ MuseScore {
 
         if (typeof curScore === 'undefined') {
             Qt.quit();
+        }
+        if (mscoreMajorVersion < 3 
+            || (mscoreMajorVersion == 3 && mscoreMinorVersion < 3)) {
+            // MM: Is there a way to check MS version before dialog is displayed?
+            console.log('This plugin requires MuseScore 3.3 and above');
+            return;
         }
 
         var cursor = curScore.newCursor(),
