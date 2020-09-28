@@ -2,16 +2,16 @@
 //  MuseScore - Chord Identifier Plugin 
 //  Chgd. debugged fixed and new-code added by: Ziya Mete Demircan 2019/04/09 23:02
 //  Add option to use entire note duration for identification: Mendy Mendelsohn, Aug-Sep 2020
-//  Suggestions: - Mark incomplete triads (with 3 voices and above)
+//  Suggestions: - Mark incomplete triads (with 3 voices and above?)
 //               - Better recognize minor key (add sub-option for Minor?)
 //
 //  Code Repository & Documentation: https://github.com/AniMikatamon/MuseScorePlugins
-//  Support: https://github.com/AniMikatamon/MuseScorePlugins/issues
+//  Code Issues: https://github.com/AniMikatamon/MuseScorePlugins/issues
 //  
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License version 2
 //  as published by the Free Software Foundation and appearing in
-//  the file LICENSE
+//  the file "LICENSE - GPLv2"
 //
 //  Prior contributors:
 //  Copyright (C) 2016 Emmanuel Roussel - https://github.com/rousselmanu/msc_plugins
@@ -34,9 +34,9 @@ import QtQuick.Dialogs 1.0
 import Qt.labs.settings 1.0
 
 MuseScore {
-    menuPath: "Plugins.Chords.Chord Identifier (Specialized3_2)"
-    description: "Identify chords and put chord symbol on top."
-    version: "2.7"
+    menuPath: "Plugins.Chords.Chord Identifier (Specialized3_3)"
+    description: 'Identify and add Chord Symbols to score ("Automatic Ctrl-K")'
+    version: "3.3"
 
     
 //    pluginType: "dock"
