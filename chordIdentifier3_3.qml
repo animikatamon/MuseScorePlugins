@@ -34,7 +34,7 @@ import QtQuick.Dialogs 1.0
 import Qt.labs.settings 1.0
 
 MuseScore {
-    menuPath: "Plugins.Chords.Chord Identifier (Specialized3_3)"
+    menuPath: "Plugins.Chords.Chord Identifier (Pop & Jazz)"
     description: 'Identify and add Chord Symbols to score ("Automatic Ctrl-K")'
     version: "3.3"
 
@@ -842,7 +842,7 @@ MuseScore {
         Text  { text:  "  Symbol:"; font.bold: true }
         property list<RadioButton> buttonList: [
           RadioButton { parent: symbolMode;text: "Roman"; exclusiveGroup: rowC },
-          RadioButton { parent: symbolMode;text: "Normal"; exclusiveGroup: rowC }
+          RadioButton { parent: symbolMode;text: "Normal(A-G)"; exclusiveGroup: rowC }
         ]
       }
 
