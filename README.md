@@ -9,7 +9,7 @@ This is a new version of the "Chord Identifier Special V3" plugin. See long list
 - Works on entire score, or only on selected notes (if selection includes more than one chord).   
 
 ### Parameters:
-<p align="center"><img src="./ChordIdentifierOptions.png"></p>
+ [inline:ChordIdentifierOptions.png] 
 
 - Symbol:
     - Normal chord, e.g. C, F7, Gm79.  
@@ -27,12 +27,10 @@ This is a new version of the "Chord Identifier Special V3" plugin. See long list
                          
 
 ### Example
-<img src="./ChordIdentifierExample.png"/>  
-<br>  
+ [inline:ChordIdentifierExample2.png] 
 
 ### Installation Guide:
 https://musescore.org/en/handbook/3/plugins#installation
-
 
 ### Usage Tips  
 - Ctrl-Z will undo all changes at once. So go ahead, try different parameters, see what works best for you!
@@ -45,14 +43,12 @@ https://musescore.org/en/handbook/3/plugins#installation
 
 
 ### Acknowledgments:  
-I started this plugin as an improvement of https://musescore.org/en/project/chord-identifier-special-v3 by Ziya Mete Demircan, who was very helpful in commenting and checking on my progress.
+I started this plugin as an improvement of https://musescore.org/en/project/chord-identifier-special-v3 by Ziya Mete Demircan, who was also very helpful in commenting and checking on my progress.
 
 Prior contributions include:
-                       
 - https://github.com/rousselmanu/msc_plugins  plugin by rousselmanu and its ports to MuseScore 2.3 by Ke Xu and to MS 3 by Dmitri Ovodok
 - https://github.com/andresn/standard-notation-experiments/tree/master/MuseScore/plugins/findharmonies  
 - http://musescore.org/en/project/findharmony  by Merte  
 - https://github.com/berteh/musescore-chordsToNotes/  - Jon Ensminger (AddNoteNameNoteHeads v. 1.2 plugin)  
 
 Thank you all!
-
