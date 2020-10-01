@@ -9,7 +9,7 @@ This is a new version of the "Chord Identifier Special V3" plugin. See long list
 - Works on entire score, or only on selected notes (if selection includes more than one chord).   
 
 ### Parameters:
- [inline:ChordIdentifierOptions.png] 
+ [inline:ChordIdentifierOptions.png=Options Dialog] 
 
 - Symbol:
     - Normal chord, e.g. C, F7, Gm79.  
