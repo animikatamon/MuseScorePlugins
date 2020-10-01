@@ -124,8 +124,8 @@ MuseScore {
 
         return -1;
     }    
-    // ---------- remove duplicate notes from chord (notes with same pitch) --------
-    function remove_dup(chord){
+    // ---------- remove duplicate from chord notes (in single octave) --------
+    function remove_dup_mod12(chord){
         var chord_notes=new Array();
 
         for(var i=0; i<chord.length; i++)
@@ -133,22 +133,24 @@ MuseScore {
 
         chord_notes.sort(function(a, b) { return a - b; }); //sort notes
 
-        var chord_uniq = chord_notes.filter(function(elem, index, self) {
+        var sorted_chord_uniq = chord_notes.filter(function(elem, index, self) {
             return index == self.indexOf(elem);
         }); //remove duplicates
 
-        return chord_uniq;
+        return sorted_chord_uniq;
     }
     
     // ---------- find intervals for all possible positions of the root note ---------- 
-    function find_intervals(chord_uniq){
-        var n=chord_uniq.length;
+    function find_intervals(sorted_chord_uniq){
+        var n=sorted_chord_uniq.length;
         var intervals = new Array(n); for(var i=0; i<n; i++) intervals[i]=new Array();
 
         for(var root_pos=0; root_pos<n; root_pos++){ //for each position of root note in the chord
             var idx=-1;
             for(var i=0; i<n-1; i++){ //get intervals from current "root"
-                var cur_inter = (chord_uniq[(root_pos+i+1)%n] - chord_uniq[(root_pos+i)%n])%12;  while(cur_inter<0) cur_inter+=12;
+                var cur_inter = (sorted_chord_uniq[(root_pos+i+1)%n] - sorted_chord_uniq[(root_pos+i)%n])%12;  
+                while(cur_inter<0)
+                    cur_inter+=12;
                 if(cur_inter != 0){// && (idx==-1 || intervals[root_pos][idx] != cur_inter)){   //avoid duplicates and 0 intervals
                     idx++;
                     intervals[root_pos][idx]=cur_inter;
@@ -278,8 +280,8 @@ MuseScore {
 //            console.log('pitch note ' + i + ': ' + chord[i].pitch + ' -> ' + chord[i].pitch%12);
 //        }   
         
-        var chord_uniq = remove_dup(chord); //remove multiple occurence of notes in chord
-        var intervals = find_intervals(chord_uniq);
+        var sorted_chord_uniq = remove_dup_mod12(chord); //remove multiple occurence of octave notes in chord
+        var intervals = find_intervals(sorted_chord_uniq);
         
         //debug:
         //for(var i=0; i<chord_uniq.length; i++) console.log('pitch note ' + i + ': ' + chord_uniq[i]);
@@ -348,7 +350,7 @@ MuseScore {
 			seventhchord=4; //13th
 			}
 			console.log('\t SEVENTHCHORD: ' + seventhchord + '\t idx_chtype: '+idx_chtype);
-			rootNote=chord_uniq[idx_rootpos];
+			rootNote=sorted_chord_uniq[idx_rootpos];
             console.log('\t rootNote: '+rootNote); //Ziya
         }else{
             console.log('No chord found');
