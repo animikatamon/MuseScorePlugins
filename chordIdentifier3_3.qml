@@ -4,6 +4,12 @@
 //  Add option to use entire note duration for identification: Mendy Mendelsohn, Aug-Sep 2020
 //  Suggestions: - Mark incomplete triads (with 3 voices and above?)
 //               - Better recognize minor key (add sub-option for Minor?)
+//               - Find if it is possible to colorize chord symbols according to score defaults? MS preferences?
+//                    If so, colorize chords (and notes?) according to prevailing defaults
+//  TODO: unify chords, strings etc. into single object array
+//        must order chord_type from short to long?
+//        handle tuples time-wise
+//        when to eliminate the same chord?
 //
 //  Code Repository & Documentation: https://github.com/AniMikatamon/MuseScorePlugins
 //  Code Issues: https://github.com/AniMikatamon/MuseScorePlugins/issues
@@ -52,10 +58,13 @@ MuseScore {
         category: "t2"
         property int displayChordMode     : 0 //0: Normal chord C  F7  Gm  //1: Roman Chord level   Ⅳ
         property int displayChordColor    : 0 //0: disable ,1 enable
-        property int inversion_notation   : 0 //set to 1: bass note is specified after a / like that: C/E for first inversion C chord.
-        property int display_bass_note    : 1 //set to 1: bass note is specified after a / like that: C/E for first inversion C chord.
-        property int entire_note_duration : 1 //set to 1 to consider full duration of note in chords.
+        property int inversion_notation   : 0 //0: none //1: note with superscript (1, 2 or 3) //2: figured bass notation
+        property int display_bass_note    : 1 //1: bass note is specified after a / like that: C/E for first inversion C chord.
+        property int entire_note_duration : 1 //1: consider full duration of note in chords.
+        property int hidePartialChords    : 1 //1: display ?? for incomplete chords //0: allow suggestion (with red chord)
     }
+
+    property variant partialCodeStr: "??"
 
     property variant black     : "#000000"
     property variant colorOth3 : "#C080C0"    //color: ext.:(9/11/13)
@@ -77,6 +86,7 @@ MuseScore {
         rowD.current = objFromIndex(bassMode.buttonList, settings.display_bass_note) 
         rowE.current = objFromIndex(chordColorMode.buttonList, settings.displayChordColor) 
         rowF.current = objFromIndex(durationMode.buttonList, settings.entire_note_duration)
+        rowG.current = objFromIndex(partialChordMode.buttonList, settings.hidePartialChords)
     }
 
     // ---------- get note name from TPC (Tonal Pitch Class):
@@ -289,8 +299,8 @@ MuseScore {
         
         
         // ---------- Compare intervals with chord types for identification ---------- 
-        var idx_chtype=-1, idx_rootpos=-1, nb_found=0;
-        var idx_chtype_arr=[], idx_rootpos_arr=[], cmp_result_arr=[];
+        var idx_chtype=-1, idx_rootpos=-1, nb_found=0, all_found = false;
+        var idx_chtype_arr=[], idx_rootpos_arr=[], cmp_result_arr=[], nb_found_arr=[];
         for(var idx_chtype_=0; idx_chtype_<chord_type.length; idx_chtype_++){ //chord types. 
             for(var idx_rootpos_=0; idx_rootpos_<intervals.length; idx_rootpos_++){ //loop through the intervals = possible root positions
                 var cmp_result = compare_arr(chord_type[idx_chtype_], intervals[idx_rootpos_]);
@@ -300,19 +310,29 @@ MuseScore {
                             nb_found=cmp_result.nb_found;
                             idx_rootpos=idx_rootpos_;
                             idx_chtype=idx_chtype_;
-                        }
+                            if (nb_found == intervals[idx_rootpos_].length)
+                                all_found = true;
+                        } //else
+                            // console.log('!! Something wrong with "chord_type" list');
                     }
                     idx_chtype_arr.push(idx_chtype_); //save partial results
                     idx_rootpos_arr.push(idx_rootpos_);
                     cmp_result_arr.push(cmp_result.cmp_arr);
+                    nb_found_arr.push(cmp_result.nb_found);
                 }
             }
         }
         
         if(idx_chtype<0 && idx_chtype_arr.length>0){ //no full chord found, but found partial chords
-            console.log('other partial chords: '+ idx_chtype_arr);
-            console.log('root_pos: '+ idx_rootpos_arr);
-            console.log('cmp_result_arr: '+ cmp_result_arr);
+            // console.log('other partial chords: '+ idx_chtype_arr);
+            // console.log('root_pos: '+ idx_rootpos_arr);
+            // console.log('cmp_result_arr: '+ cmp_result_arr);
+            nb_found = nb_found_arr.reduce(function(a,c){return Math.max(a,c)});
+            console.log('nb_found',nb_found,'\n   root / chord / result:');
+            for(var i=0; i<cmp_result_arr.length; i++) {
+                if ( nb_found_arr[i]==nb_found )
+                    console.log('    '+idx_rootpos_arr[i]+'/'+chord_type[idx_chtype_arr[i]]+'/'+cmp_result_arr[i]);
+            }
 
             for(var i=0; i<cmp_result_arr.length; i++){
                 if(cmp_result_arr[i][0]===1 && cmp_result_arr[i][2]===1){ //third and 7th ok (missing 5th)
@@ -341,13 +361,13 @@ MuseScore {
             if (idx_chtype == 1 || idx_chtype == 2 || idx_chtype == 3 || idx_chtype == 12 ) {
 				seventhchord=0;
 			} else if ((idx_chtype >= 4 && idx_chtype <=11) || idx_chtype == 13 || idx_chtype == 14 ) {
-			seventhchord=1;  //7th
+			    seventhchord=1;  //7th
 			} else if ((idx_chtype >= 15 && idx_chtype <=20) || idx_chtype == 27 || idx_chtype == 31 ) {
-			seventhchord=2; //9th
+			    seventhchord=2; //9th
 			} else if ((idx_chtype >= 21 && idx_chtype <=24) || idx_chtype == 32 || idx_chtype == 33) {
-			seventhchord=3; //11th
+			    seventhchord=3; //11th
 			} else if (idx_chtype == 25 || idx_chtype ==26 || idx_chtype == 28 || idx_chtype == 29 || idx_chtype == 30 ) {
-			seventhchord=4; //13th
+			    seventhchord=4; //13th
 			}
 			console.log('\t SEVENTHCHORD: ' + seventhchord + '\t idx_chtype: '+idx_chtype);
 			rootNote=sorted_chord_uniq[idx_rootpos];
@@ -355,11 +375,8 @@ MuseScore {
         }else{
             console.log('No chord found');
         }
-        if (settings.displayChordColor) {
-        var colorize=true;
-        } else {        
-        var colorize=false;    
-        }
+
+        var colorize = settings.displayChordColor;
         var regular_chord=[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]; //without NCTs
         var bass=null; 
         
@@ -476,9 +493,14 @@ MuseScore {
                 chordName += " "+chordNameRoman
             }
         }
-        
 
-        return chordName;
+        if ( ! all_found)
+            console.log(' >> not all notes matched');
+
+        return {
+            chordName:      chordName,
+            matchAllNotes:  all_found
+        };
     }
     
     function getSegmentHarmony(segment) {
@@ -601,7 +623,7 @@ MuseScore {
                 while (cursor.tick < seg.tick)
                     cursor.next();
                 if (cursor.tick > seg.tick)
-                    console.log('BUG cursor('+cursor.tick+') went beyond seg('+seg.tick+') !!');
+                    console.log('BUG!!! cursor('+cursor.tick+') went beyond seg('+seg.tick+') !!');
                 // console.log('   next cursor seg: tick='+cursor.segment.tick+' of type '+cursor.segment.userName());
                 return true;
             } else {
@@ -674,7 +696,7 @@ MuseScore {
         
         var segment;
         var chordName = '';
-        var full_chord = [];
+        var full_chord = false;
         while (segment=cursor.segment) { //loop through entire score
             // FIRST we get all notes on current position of the cursor, for all voices and all staves.
             var prev_full_chord = full_chord;
@@ -684,21 +706,32 @@ MuseScore {
                 console.log('------');
                 console.log('nb of notes found: ' + full_chord.length);
                 var prev_chordName = chordName;
-                chordName = getChordName(full_chord,cursor.keySignature);
-                console.log('\tchordName: ' + chordName);
+                var gcnRes = getChordName(full_chord,cursor.keySignature);
+                chordName = gcnRes.chordName;
+                console.log('\tchordName: ' + chordName + (gcnRes.matchAllNotes?'':partialCodeStr));
 
-                if (chordName !== '') { //chord has been identified
+                // if (chordName !== '') { //chord has been identified
+                    var harmonyText = chordName, harmonyColor = black;
+                    if (harmonyText && !gcnRes.matchAllNotes) {
+                        if (settings.hidePartialChords)
+                            harmonyText = partialCodeStr;
+                        else
+                            harmonyColor = red;
+                    }
                     var harmony = getSegmentHarmony(segment);
                     if (harmony) { //if chord symbol exists, replace it
                         //console.log("got harmony " + staffText + " with root: " + harmony.rootTpc + " bass: " + harmony.baseTpc);
-                        harmony.text = chordName;
+                        harmony.text = harmonyText;
+                        harmony.color = harmonyColor;
                     }else{ //chord symbol does not exist, create it
                         harmony = newElement(Element.HARMONY);
-                        harmony.text = chordName;
+                        harmony.text = harmonyText;
+                        harmony.color = harmonyColor;
                         //console.log("text type:  " + staffText.type);
                         cursor.add(harmony);
                     }
-                    
+
+                    // when to                     
                     if(prev_chordName == chordName){// && isEqual(prev_full_chord, full_chord)){ //same chord as previous one ... remove text symbol
                         harmony.text = '';
                     }
@@ -707,7 +740,7 @@ MuseScore {
                     staffText.text = chordName;
                     staffText.pos.x = 0;
                     cursor.add(staffText);*/
-                }
+                // }
             }
             
             if ( !setToClosestNextElement(cursor, Element.CHORD) )
@@ -797,7 +830,15 @@ MuseScore {
           break;
       }
     }
-	// console.log('use entire note duration = ' + entire_note_duration);
+
+    for (var i=0; i < partialChordMode.buttonList.length; i++ ) {
+      var s = partialChordMode.buttonList[i];
+      if (s.checked) {
+          settings.hidePartialChords=partialChordMode.buttonList.length-1-i;
+          break;
+      }
+    }
+	console.log('hidePartialChords =', settings.hidePartialChords);
 
 //    for (var i=0; i < newScoreMode.buttonList.length; i++ ) {
 //      var s = newScoreMode.buttonList[i];
@@ -834,10 +875,8 @@ MuseScore {
         id: flatRow1
         spacing: 20
         Text  { text:  "  "; font.bold: true }
-
       }
 
-      
       RowLayout {
         id: symbolMode
         spacing: 20
@@ -859,17 +898,6 @@ MuseScore {
       }
 
       RowLayout {
-        id: chordColorMode
-        spacing: 20
-        Text  { text:  "  Highlight Chord Notes:"; font.bold: true }
-        property list<RadioButton> buttonList: [
-          RadioButton { parent: chordColorMode;text: "Yes"; exclusiveGroup: rowE },
-          RadioButton { parent: chordColorMode;text: "No"; exclusiveGroup: rowE }
-
-        ]
-      }
-
-      RowLayout {
         id: inversionMode
         spacing: 20
         Text  { text:  "  Inversion:"; font.bold: true }
@@ -877,6 +905,26 @@ MuseScore {
           RadioButton { parent: inversionMode;text: "Figured Bass"; exclusiveGroup: rowB },
           RadioButton { parent: inversionMode;text: "Normal"; exclusiveGroup: rowB },
           RadioButton { parent: inversionMode;text: "No"; exclusiveGroup: rowB }
+        ]
+      }
+
+      RowLayout {
+        id: chordColorMode
+        spacing: 20
+        Text  { text:  "  Highlight Chord Notes:"; font.bold: true }
+        property list<RadioButton> buttonList: [
+          RadioButton { parent: chordColorMode;text: "Yes"; exclusiveGroup: rowE },
+          RadioButton { parent: chordColorMode;text: "No"; exclusiveGroup: rowE }
+        ]
+      }
+
+      RowLayout {
+        id: partialChordMode
+        spacing: 20
+        Text  { text:  "  On Incomplete Chords:"; font.bold: true }
+        property list<RadioButton> buttonList: [
+          RadioButton { parent: partialChordMode;text: "Show '??'"; exclusiveGroup: rowG },
+          RadioButton { parent: partialChordMode;text: "Suggest"; exclusiveGroup: rowG }
         ]
       }
 
@@ -895,6 +943,7 @@ MuseScore {
       ExclusiveGroup { id: rowD }
       ExclusiveGroup { id: rowE }
       ExclusiveGroup { id: rowF }
+      ExclusiveGroup { id: rowG }
   }
 
   Button {
