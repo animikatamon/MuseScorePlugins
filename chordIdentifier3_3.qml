@@ -134,12 +134,11 @@ MuseScore {
 
         return -1;
     }    
-    // ---------- remove duplicate from chord notes (in single octave) --------
-    function remove_dup_mod12(chord){
+    function remove_dup_mod(chord, mod){
         var chord_notes=new Array();
 
         for(var i=0; i<chord.length; i++)
-            chord_notes[i] = chord[i].pitch%12; // remove octaves
+            chord_notes[i] = chord[i].pitch%mod; // remove octaves - or not
 
         chord_notes.sort(function(a, b) { return a - b; }); //sort notes
 
@@ -149,7 +148,21 @@ MuseScore {
 
         return sorted_chord_uniq;
     }
+    // ---------- remove duplicate from chord notes (original pitch) --------
+    function remove_dup_mod12(chord){
+        return remove_dup_mod(chord, 12);
+    }
+    // ---------- remove duplicate from chord notes (in single octave) --------
+    function remove_dup(chord){
+        return remove_dup_mod(chord, 10000);
+    }
     
+    function areNotesEqual(chord1, chord2){
+        var a1 = remove_dup(chord1);
+        var a2 = remove_dup(chord2);
+        return a1.length == a2.length && a1.every(function(value, i) { return value === a2[i]})
+    }
+
     // ---------- find intervals for all possible positions of the root note ---------- 
     function find_intervals(sorted_chord_uniq){
         var n=sorted_chord_uniq.length;
@@ -696,7 +709,8 @@ MuseScore {
         
         var segment;
         var chordName = '';
-        var full_chord = false;
+        var curr_matched_all = false;
+        var full_chord = [];
         while (segment=cursor.segment) { //loop through entire score
             // FIRST we get all notes on current position of the cursor, for all voices and all staves.
             var prev_full_chord = full_chord;
@@ -705,41 +719,47 @@ MuseScore {
             if(full_chord.length>0){ //More than 0 notes found!
                 console.log('------');
                 console.log('nb of notes found: ' + full_chord.length);
-                var prev_chordName = chordName;
+                var prev_chordName = chordName, prev_matched_all = curr_matched_all;
                 var gcnRes = getChordName(full_chord,cursor.keySignature);
                 chordName = gcnRes.chordName;
+                curr_matched_all = gcnRes.matchAllNotes;
                 console.log('\tchordName: ' + chordName + (gcnRes.matchAllNotes?'':partialCodeStr));
 
                 // if (chordName !== '') { //chord has been identified
-                    var harmonyText = chordName, harmonyColor = black;
-                    if (harmonyText && !gcnRes.matchAllNotes) {
-                        if (settings.hidePartialChords)
-                            harmonyText = partialCodeStr;
-                        else
-                            harmonyColor = red;
-                    }
-                    var harmony = getSegmentHarmony(segment);
-                    if (harmony) { //if chord symbol exists, replace it
-                        //console.log("got harmony " + staffText + " with root: " + harmony.rootTpc + " bass: " + harmony.baseTpc);
-                        harmony.text = harmonyText;
-                        harmony.color = harmonyColor;
-                    }else{ //chord symbol does not exist, create it
-                        harmony = newElement(Element.HARMONY);
-                        harmony.text = harmonyText;
-                        harmony.color = harmonyColor;
-                        //console.log("text type:  " + staffText.type);
-                        cursor.add(harmony);
-                    }
+                var harmonyText = chordName, harmonyColor = black;
+                if (harmonyText && !gcnRes.matchAllNotes) {
+                    if (settings.hidePartialChords)
+                        harmonyText = partialCodeStr;
+                    else
+                        harmonyColor = red;
+                }
+                var harmony = getSegmentHarmony(segment);
+                if (harmony) { //if chord symbol exists, replace it
+                    //console.log("got harmony " + staffText + " with root: " + harmony.rootTpc + " bass: " + harmony.baseTpc);
+                    harmony.text = harmonyText;
+                    harmony.color = harmonyColor;
+                }else{ //chord symbol does not exist, create it
+                    harmony = newElement(Element.HARMONY);
+                    harmony.text = harmonyText;
+                    harmony.color = harmonyColor;
+                    //console.log("text type:  " + staffText.type);
+                    cursor.add(harmony);
+                }
 
-                    // when to                     
-                    if(prev_chordName == chordName){// && isEqual(prev_full_chord, full_chord)){ //same chord as previous one ... remove text symbol
-                        harmony.text = '';
-                    }
-                    //console.log("xpos: "+harmony.pos.x+" ypos: "+harmony.pos.y);
-                    /*staffText = newElement(Element.STAFF_TEXT);
-                    staffText.text = chordName;
-                    staffText.pos.x = 0;
-                    cursor.add(staffText);*/
+                /* when to skip displaying duplicate chord:
+                    - if current and previous fully matched
+                    OR
+                    - if previous chord notes identical to current (NOT mod 12. Really identical)
+                */
+                if((prev_chordName == chordName && prev_matched_all && curr_matched_all)
+                    || areNotesEqual(prev_full_chord, full_chord)){
+                    harmony.text = '';
+                }
+                //console.log("xpos: "+harmony.pos.x+" ypos: "+harmony.pos.y);
+                /*staffText = newElement(Element.STAFF_TEXT);
+                staffText.text = chordName;
+                staffText.pos.x = 0;
+                cursor.add(staffText);*/
                 // }
             }
             
