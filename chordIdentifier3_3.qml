@@ -7,9 +7,7 @@
 //               - Find if it is possible to colorize chord symbols according to score defaults? MS preferences?
 //                    If so, colorize chords (and notes?) according to prevailing defaults
 //  TODO: unify chords, strings etc. into single object array
-//        must order chord_type from short to long?
-//        handle tuples time-wise
-//        when to eliminate the same chord?
+//        (must order chord_type from short to long?)
 //
 //  Code Repository & Documentation: https://github.com/AniMikatamon/MuseScorePlugins
 //  Code Issues: https://github.com/AniMikatamon/MuseScorePlugins/issues
@@ -529,6 +527,12 @@ MuseScore {
         return null;
     } 
     
+    function chordDuration(chord){
+        var duration = chord.globalDuration;    // only from MS 3.5 onwards
+        if ( !duration )
+            duration = chord.duration;
+        return duration.ticks;
+    }
     function getAllCurrentNotes(cursor, startStaff, endStaff, onlySelected, prev_chord){
         var full_chord = [];
         var tickLogged = false;
@@ -551,7 +555,10 @@ MuseScore {
                             tickLogged = true;
                         }
                         if ( !trackLogged ) {
-                            console.log('     >> s'+staff+' v'+voice+'   duration:'+cursor.element.duration.ticks);
+                            console.log('     >> s'+staff+' v'+voice+'   duration:'+chordDuration(cursor.element));
+                            // var act = cursor.element.stam, glo = cursor.element.globalDuration;
+                            // console.log('        (stam?',(act?'def':'undef'),act==undefined, //defined(act),
+                            //                     ') (global?',glo==undefined,glo.numerator,'/'+glo.denominator, glo.ticks);
                             trackLogged = true;
                         }
                         full_chord.push(notes[i]);
@@ -564,7 +571,7 @@ MuseScore {
 //			console.log('   >> prev');
 			for (var i = 0; i < prev_chord.length; i++) {
 				var note = prev_chord[i];
-				var excl = (note.parent.parent.tick + note.parent.duration.ticks > cursor.tick ? "!!!" : "");
+				var excl = (note.parent.parent.tick + chordDuration(note.parent) > cursor.tick ? "!!!" : "");
 				if (excl && settings.entire_note_duration)
 					full_chord.push(note);
 //				console.log(excl+'     >> tick:'+note.parent.parent.tick+' len'+note.parent.duration.ticks+' p'+note.pitch);
