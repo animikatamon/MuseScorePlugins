@@ -239,42 +239,46 @@ MuseScore {
         // intervals (number of semitones from root note) for main chords types...          //TODO : revoir fonctionnement et identifier d'abord triad, puis seventh ?
         //          0    1   2    3        4   5          6      7    8         9     10    11
         // numeric: R,  b9,  9,  m3(#9),  M3, 11(sus4), #11(b5), 5,  #5(b13),  13(6),  7,   M7  //Ziya
-        var chord_type = [  [4,7],          //00: M (0)*
-                            [3,7],          //01: m*
-                            [3,6],          //02: dim*
-                            [5,7],          //03: sus4 = Suspended Fourth*
-                            [5,7,10],       //04: 7sus4 = Dominant7, Suspended Fourth*
-                            [4,7,11],       //05: M7 = Major Seventh*
-                            [3,7,11],       //06: mMa7 = minor Major Seventh*
-                            [3,7,10],       //07: m7 = minor Seventh*
-                            [4,7,10],       //08: m7 = Dominant Seventh*
-                            [3,6,9],        //09: dim7 = Diminished Seventh*
-                            [4,8,11],       //10: #5Maj7 = Major Seventh, Raised Fifth*
-                            [4,8,10],       //11: #57 = Dominant Seventh, Raised Fifth*
-                            [4,8],          //12: #5 = Majör Raised Fifth*
-                            [3,6,10],       //13: m7b5 = minor 7th, Flat Fifth*
-                            [4,6,10],       //14: M7b5 = Major 7th, Flat Fifth*                     
-                            [4,7,2],        //15: add9 = Major additional Ninth*
-                            [4,7,11,2],     //16: Maj7(9) = Major Seventh, plus Ninth*
-                            [4,7,10,2],     //17: 7(9) = Dominant Seventh, plus Ninth*
-                            [3,7,2],        //18: add9 = minor additional Ninth*
-                            [3,7,11,2],     //19: m9(Maj7) = minor Major Seventh, plus Ninth*
-                            [3,7,10,2],     //20: m7(9) = minor Seventh, plus Ninth*
-                            [4,7,11,6],     //21: Maj7(#11) = Major Seventh, Sharp Eleventh*
-                            [4,7,11,2,6],   //22: Maj9(#11) = Major Seventh, Sharp Eleventh, plus Ninth*
-                            [4,7,10,6],     //23: 7(#11) =  Dom. Seventh, Sharp Eleventh*
-                            [4,7,10,2,6],   //24: 9(#11) =  Dom. Seventh, Sharp Eleventh, plus Ninth*
-                            [4,7,10,9],     //25: 7(13) =  Dom. Seventh, Thirteenth*
-                            [4,7,10,2,9],   //26: 9(13) =  Dom. Seventh, Thirteenth, plus Ninth*
-                            [4,7,10,1],     //27: 7(b9) = Dominant Seventh, plus Flattened Ninth*
-                            [4,7,10,8],     //28: 7(b13) =  Dom. Seventh, Flattened Thirteenth*
-                            [4,7,10,1,8],   //29: 7(b13b9) =  Dom. Seventh, Flattened Thirteenth, plus Flattened Ninth*
-                            [4,7,10,1,5,8], //30: 7(b13b911) =  Dom. Seventh, Flattened Thirteenth plus Flattenet Ninth, plus Eleventh*
-                            [4,7,10,3],     //31: 7(#9) = Dominant Seventh, plus Sharp Ninth*
-                            [3,7,10,5],     //32: m7(11) = minor Seventh, plus Eleventh*
-                            [3,7,10,2,5],   //33: m9(11) = minor Seventh, plus Eleventh, plus Ninth*
-                            [0,0,0]];       //34: Dummy
-                                               
+        const STR = 0;
+        const INTERVALS = 1;
+        const all_chords = [
+            // semi-automatically generated from previous chord_type & chord_str
+            [ "",           [4,7] ],            //00: M (0)*
+            [ "m",          [3,7] ],            //01: m*
+            [ "dim",        [3,6] ],            //02: dim*
+            [ "sus4",       [5,7] ],            //03: sus4 = Suspended Fourth*
+            [ "7sus4",      [5,7,10] ],         //04: 7sus4 = Dominant7, Suspended Fourth*
+            [ "Maj7",       [4,7,11] ],         //05: M7 = Major Seventh*
+            [ "m(Maj7)",    [3,7,11] ],         //06: mMa7 = minor Major Seventh*
+            [ "m7",         [3,7,10] ],         //07: m7 = minor Seventh*
+            [ "7",          [4,7,10] ],         //08: 7 = Dominant Seventh*
+            [ "o7",         [3,6,9] ],          //09: dim7 = Diminished Seventh*
+            [ "Maj7(#5)",   [4,8,11] ],         //10: #5Maj7 = Major Seventh, Raised Fifth*
+            [ "7(#5)",      [4,8,10] ],         //11: #57 = Dominant Seventh, Raised Fifth*
+            [ "aug",        [4,8] ],            //12: #5 = Majör Raised Fifth*
+            [ "0",          [3,6,10] ],         //13: m7b5 = minor 7th, Flat Fifth*
+            [ "7(b5)",      [4,6,10] ],         //14: M7b5 = Major 7th, Flat Fifth*                     
+            [ "(add9)",     [4,7,2] ],          //15: add9 = Major additional Ninth*
+            [ "Maj9",       [4,7,11,2] ],       //16: Maj7(9) = Major Seventh, plus Ninth*    
+            [ "9",          [4,7,10,2] ],       //17: 7(9) = Dominant Seventh, plus Ninth*    
+            [ "m(add9)",    [3,7,2] ],          //18: add9 = minor additional Ninth*
+            [ "m9(Maj7)",   [3,7,11,2] ],       //19: m9(Maj7) = minor Major Seventh, plus Ninth*
+            [ "m9",         [3,7,10,2] ],       //20: m7(9) = minor Seventh, plus Ninth*
+            [ "Maj7(#11)",  [4,7,11,6] ],       //21: Maj7(#11) = Major Seventh, Sharp Eleventh*
+            [ "Maj9(#11)",  [4,7,11,2,6] ],     //22: Maj9(#11) = Major Seventh, Sharp Eleventh, plus Ninth* 
+            [ "7(#11)",     [4,7,10,6] ],       //23: 7(#11) =  Dom. Seventh, Sharp Eleventh*
+            [ "9(#11)",     [4,7,10,2,6] ],     //24: 9(#11) =  Dom. Seventh, Sharp Eleventh, plus Ninth* 
+            [ "7(13)",      [4,7,10,9] ],       //25: 7(13) =  Dom. Seventh, Thirteenth*
+            [ "9(13)",      [4,7,10,2,9] ],     //26: 9(13) =  Dom. Seventh, Thirteenth, plus Ninth* 
+            [ "7(b9)",      [4,7,10,1] ],       //27: 7(b9) = Dominant Seventh, plus Flattened Ninth*
+            [ "7(b13)",     [4,7,10,8] ],       //28: 7(b13) =  Dom. Seventh, Flattened Thirteenth*
+            [ "7(b9/b13)",  [4,7,10,1,8] ],     //29: 7(b13b9) =  Dom. Seventh, Flattened Thirteenth, plus Flattened Ninth* 
+            [ "11(b9/b13)", [4,7,10,1,5,8] ],      //30: 7(b13b911) =  Dom. Seventh, Flattened Thirteenth plus Flattenet Ninth, plus Eleventh* 
+            [ "7(#9)",      [4,7,10,3] ],       //31: 7(#9) = Dominant Seventh, plus Sharp Ninth*
+            [ "m7(11)",     [3,7,10,5] ],       //32: m7(11) = minor Seventh, plus Eleventh*
+            [ "m11",        [3,7,10,2,5] ],     //33: m9(11) = minor Seventh, plus Eleventh, plus Ninth* 
+            [ "x", [0,0,0] ]                    //34: Dummy
+        ];                                               
         //Notice: [2,7],     //sus2  = Suspended Two // Not recognized; Recognized as 5sus/1 eg. c,d,g = Gsus4/C
         //Notice: [4,7,9],   //6  = Sixth // Not recognized; Recognized as vim7/1 eg. c,e,g,a = Am7/C
         //Notice: [3,7,9],   //m6 = Minor Sixth // Not recognized; Recognized as vim7b5/1 eg. c,e,g,a = Am7b5/C
@@ -283,7 +287,7 @@ MuseScore {
                             
                             //... and associated notation:
         //var chord_str = ["", "m", "\u00B0", "MM7", "m7", "Mm7", "\u00B07"];
-        var chord_str = ["", "m", "dim", "sus4",  "7sus4", "Maj7", "m(Maj7)", "m7", "7", "o7", "Maj7(#5)", "7(#5)", "aug", "0", "7(b5)", "(add9)", "Maj9", "9", "m(add9)", "m9(Maj7)", "m9", "Maj7(#11)", "Maj9(#11)", "7(#11)", "9(#11)", "7(13)", "9(13)", "7(b9)","7(b13)", "7(b9/b13)", "11(b9/b13)", "7(#9)", "m7(11)", "m11", "x"];
+        // var chord_str = ["", "m", "dim", "sus4",  "7sus4", "Maj7", "m(Maj7)", "m7", "7", "o7", "Maj7(#5)", "7(#5)", "aug", "0", "7(b5)", "(add9)", "Maj9", "9", "m(add9)", "m9(Maj7)", "m9", "Maj7(#11)", "Maj9(#11)", "7(#11)", "9(#11)", "7(13)", "9(13)", "7(b9)","7(b13)", "7(b9/b13)", "11(b9/b13)", "7(#9)", "m7(11)", "m11", "x"];
         /*var chord_type_reduced = [ [4],  //M
                                     [3],  //m
                                     [4,11],   //MM7
@@ -312,11 +316,11 @@ MuseScore {
         // ---------- Compare intervals with chord types for identification ---------- 
         var idx_chtype=-1, idx_rootpos=-1, nb_found=0, all_found = false;
         var idx_chtype_arr=[], idx_rootpos_arr=[], cmp_result_arr=[], nb_found_arr=[];
-        for(var idx_chtype_=0; idx_chtype_<chord_type.length; idx_chtype_++){ //chord types. 
+        for(var idx_chtype_=0; idx_chtype_<all_chords.length; idx_chtype_++){ //chord types. 
             for(var idx_rootpos_=0; idx_rootpos_<intervals.length; idx_rootpos_++){ //loop through the intervals = possible root positions
-                var cmp_result = compare_arr(chord_type[idx_chtype_], intervals[idx_rootpos_]);
+                var cmp_result = compare_arr(all_chords[idx_chtype_][INTERVALS], intervals[idx_rootpos_]);
                 if(cmp_result.nb_found>0){ //found some intervals
-                    if(cmp_result.nb_found == chord_type[idx_chtype_].length){ //full chord found!
+                    if(cmp_result.nb_found == all_chords[idx_chtype_][INTERVALS].length){ //full chord found!
                         if(cmp_result.nb_found>nb_found){ //keep chord with maximum number of similar interval
                             nb_found=cmp_result.nb_found;
                             idx_rootpos=idx_rootpos_;
@@ -342,7 +346,7 @@ MuseScore {
             console.log('nb_found',nb_found,'\n   root / chord / result:');
             for(var i=0; i<cmp_result_arr.length; i++) {
                 if ( nb_found_arr[i]==nb_found )
-                    console.log('    '+idx_rootpos_arr[i]+'/'+chord_type[idx_chtype_arr[i]]+'/'+cmp_result_arr[i]);
+                    console.log('    '+idx_rootpos_arr[i]+'/'+all_chords[idx_chtype_arr[i]][INTERVALS]+'/'+cmp_result_arr[i]);
             }
 
             for(var i=0; i<cmp_result_arr.length; i++){
@@ -399,30 +403,30 @@ MuseScore {
                     regular_chord[0] = chord[i];
                     if (colorize) chord[i].color = colorroot; else chord[i].color = black; 
                     if(bass==null) bass=chord[i];
-                }else if((chord[i].pitch%12) === ((rootNote+chord_type[idx_chtype][0])%12)){ //third note
+                }else if((chord[i].pitch%12) === ((rootNote+all_chords[idx_chtype][INTERVALS][0])%12)){ //third note
                     regular_chord[1] = chord[i];
                     if (colorize) chord[i].color = color3rd; else chord[i].color = black;
                     if(bass==null) bass=chord[i];
-                }else if(chord_type[idx_chtype].length>=2 && (chord[i].pitch%12) === ((rootNote+chord_type[idx_chtype][1])%12)){ //5th
+                }else if(all_chords[idx_chtype][INTERVALS].length>=2 && (chord[i].pitch%12) === ((rootNote+all_chords[idx_chtype][INTERVALS][1])%12)){ //5th
                     regular_chord[2] = chord[i];
                     if (colorize) chord[i].color = color5th; else chord[i].color = black;
                     if(bass==null) bass=chord[i];
-                }else if(chord_type[idx_chtype].length>=6 && (chord[i].pitch%12) === ((rootNote+chord_type[idx_chtype][5])%12)){ //13Other
+                }else if(all_chords[idx_chtype][INTERVALS].length>=6 && (chord[i].pitch%12) === ((rootNote+all_chords[idx_chtype][INTERVALS][5])%12)){ //13Other
                     regular_chord[6] = chord[i];
                     if (colorize) chord[i].color = colorOth3; else chord[i].color = black;
                     if(bass==null) bass=chord[i];
                     //seventhchord=4;
-                }else if(chord_type[idx_chtype].length>=5 && (chord[i].pitch%12) === ((rootNote+chord_type[idx_chtype][4])%12)){ //11Other
+                }else if(all_chords[idx_chtype][INTERVALS].length>=5 && (chord[i].pitch%12) === ((rootNote+all_chords[idx_chtype][INTERVALS][4])%12)){ //11Other
                     regular_chord[5] = chord[i];
                     if (colorize) chord[i].color = colorOth2; else chord[i].color = black;
                     if(bass==null) bass=chord[i];
                     //seventhchord=3;
-                }else if(chord_type[idx_chtype].length>=4 && (chord[i].pitch%12) === ((rootNote+chord_type[idx_chtype][3])%12)){ //9Other
+                }else if(all_chords[idx_chtype][INTERVALS].length>=4 && (chord[i].pitch%12) === ((rootNote+all_chords[idx_chtype][INTERVALS][3])%12)){ //9Other
                     regular_chord[4] = chord[i];
                     if (colorize) chord[i].color = colorOth1; else chord[i].color = black;
                     if(bass==null) bass=chord[i];
                     //seventhchord=2;
-                }else if(chord_type[idx_chtype].length>=3 && (chord[i].pitch%12) === ((rootNote+chord_type[idx_chtype][2])%12)){ //7th
+                }else if(all_chords[idx_chtype][INTERVALS].length>=3 && (chord[i].pitch%12) === ((rootNote+all_chords[idx_chtype][INTERVALS][2])%12)){ //7th
                     regular_chord[3] = chord[i];
                     if (colorize) chord[i].color = color7th; else chord[i].color = black;
                     if(bass==null) bass=chord[i];
@@ -442,10 +446,10 @@ MuseScore {
             
             // ----- find chord name:
             var notename = getNoteName(regular_chord[0].tpc);
-            chordName = notename + chord_str[idx_chtype];
+            chordName = notename + all_chords[idx_chtype][STR];
             chordNameRoman = getNoteRomanSeq(regular_chord[0].pitch,keysig);
             console.log(' 382: chordNameRoman1: '+chordNameRoman); 
-            chordNameRoman += chord_str[idx_chtype];
+            chordNameRoman += all_chords[idx_chtype][STR];
             console.log(' 384: chordNameRoman2: '+chordNameRoman); 
 
         }else{
@@ -462,8 +466,8 @@ MuseScore {
             if(bass_pitch == rootNote){ //Is chord in root position ?
                 inv=0;
             }else{
-                for(var inv=1; inv<chord_type[idx_chtype].length+1; inv++){
-                   if(bass_pitch == ((rootNote+chord_type[idx_chtype][inv-1])%12)) break;
+                for(var inv=1; inv<all_chords[idx_chtype][INTERVALS].length+1; inv++){
+                   if(bass_pitch == ((rootNote+all_chords[idx_chtype][INTERVALS][inv-1])%12)) break;
                    //console.log('note n: ' + ((chord[idx_rootpos].pitch+intervals[idx_rootpos][inv-1])%12));
                 }
             }
