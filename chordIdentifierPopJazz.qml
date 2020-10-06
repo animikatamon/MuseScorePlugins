@@ -40,7 +40,7 @@ import Qt.labs.settings 1.0
 MuseScore {
     menuPath: "Plugins.Chords.Chord Identifier (Pop & Jazz)"
     description: 'Identify and add Chord Symbols to score ("Automatic Ctrl-K")'
-    version: "3.3"
+    version: "3.4"
 
     
 //    pluginType: "dock"
