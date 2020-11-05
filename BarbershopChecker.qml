@@ -1,16 +1,15 @@
 //=============================================================================
-//  MuseScore - Chord Identifier Plugin 
-//  Chgd. debugged fixed and new-code added by: Ziya Mete Demircan 2019/04/09 23:02
-//  Add option to use entire note duration for identification: Mendy Mendelsohn, Aug-Sep 2020
+//  MuseScore - Check adherence to Barbershop Harmony rules
+//              Copyright (C) 2020 Mendy Mendelsohn
+//
 //  Suggestions: - Mark incomplete triads (with 3 voices and above?)
 //               - Better recognize minor key (add sub-option for Minor?)
 //               - Find if it is possible to colorize chord symbols according to score defaults? MS preferences?
 //                    If so, colorize chords (and notes?) according to prevailing defaults
-//  TODO: unify chords, strings etc. into single object array
-//        (must order chord_type from short to long?)
+//  TODO: (must order chord_type from short to long?)
 //
 //  Code Repository & Documentation: https://github.com/AniMikatamon/MuseScorePlugins
-//  Code Issues: https://github.com/AniMikatamon/MuseScorePlugins/issues
+//  Code Issues: https://github.com/????/MuseScorePlugins/issues
 //  
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License version 2
@@ -18,6 +17,7 @@
 //  the file "LICENSE - GPLv2"
 //
 //  Prior contributors:
+//  Chgd. debugged fixed and new-code added by: Ziya Mete Demircan 2019/04/09 23:02
 //  Copyright (C) 2016 Emmanuel Roussel - https://github.com/rousselmanu/msc_plugins
 //  I started this plugin as an improvement of the "Find Harmonies" plugin by Andresn 
 //      (https://github.com/andresn/standard-notation-experiments/tree/master/MuseScore/plugins/findharmonies)
@@ -38,9 +38,9 @@ import QtQuick.Dialogs 1.0
 import Qt.labs.settings 1.0
 
 MuseScore {
-    menuPath: "Plugins.Chords.Chord Identifier (Pop & Jazz)"
-    description: 'Identify and add Chord Symbols to score ("Automatic Ctrl-K")'
-    version: "3.4"
+    menuPath: "Plugins.Chords.Barbershop Checker"
+    description: 'Check adherence to Barbershop Harmony rules'
+    version: "0.8"
 
     
 //    pluginType: "dock"
