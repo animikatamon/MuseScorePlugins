@@ -17,6 +17,8 @@
 //  the file "LICENSE - GPLv2"
 //
 //  Prior contributors:
+//  Based on https://musescore.org/en/project/chord-identifier-pop-jazz
+//      and on work by: 
 //  Chgd. debugged fixed and new-code added by: Ziya Mete Demircan 2019/04/09 23:02
 //  Copyright (C) 2016 Emmanuel Roussel - https://github.com/rousselmanu/msc_plugins
 //  I started this plugin as an improvement of the "Find Harmonies" plugin by Andresn 
@@ -256,7 +258,7 @@ MuseScore {
             [ "Maj7(#5)",   [4,8,11] ],         //10: #5Maj7 = Major Seventh, Raised Fifth*
             [ "7(#5)",      [4,8,10] ],         //11: #57 = Dominant Seventh, Raised Fifth*
             [ "aug",        [4,8] ],            //12: #5 = Majör Raised Fifth*
-            [ "0",          [3,6,10] ],         //13: m7b5 = minor 7th, Flat Fifth*
+            [ "0",          [3,6,10] ],         //13: m7b5 = ø = minor 7th, Flat Fifth* / Half Diminished
             [ "7(b5)",      [4,6,10] ],         //14: M7b5 = Major 7th, Flat Fifth*                     
             [ "(add9)",     [4,7,2] ],          //15: add9 = Major additional Ninth*
             [ "Maj9",       [4,7,11,2] ],       //16: Maj7(9) = Major Seventh, plus Ninth*    
