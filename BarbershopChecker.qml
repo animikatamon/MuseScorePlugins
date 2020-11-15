@@ -316,24 +316,24 @@ MuseScore {
         
         
         // ---------- Compare intervals with chord types for identification ---------- 
-        var idx_chtype=-1, idx_rootpos=-1, nb_found=0, all_found = false;
+        var idx_chtype=-1, idx_rootpos=-1, bestNbFound=0, all_found = false;
         var idx_chtype_arr=[], idx_rootpos_arr=[], cmp_result_arr=[], nb_found_arr=[];
-        for(var idx_chtype_=0; idx_chtype_<all_chords.length; idx_chtype_++){ //chord types. 
-            for(var idx_rootpos_=0; idx_rootpos_<intervals.length; idx_rootpos_++){ //loop through the intervals = possible root positions
-                var cmp_result = compare_arr(all_chords[idx_chtype_][INTERVALS], intervals[idx_rootpos_]);
+        for(var i_chType=0; i_chType<all_chords.length; i_chType++){ //chord types. 
+            for(var i_rPos=0; i_rPos<intervals.length; i_rPos++){ //loop through the intervals = possible root positions
+                var cmp_result = compare_arr(all_chords[i_chType][INTERVALS], intervals[i_rPos]);
                 if(cmp_result.nb_found>0){ //found some intervals
-                    if(cmp_result.nb_found == all_chords[idx_chtype_][INTERVALS].length){ //full chord found!
-                        if(cmp_result.nb_found>nb_found){ //keep chord with maximum number of similar interval
-                            nb_found=cmp_result.nb_found;
-                            idx_rootpos=idx_rootpos_;
-                            idx_chtype=idx_chtype_;
-                            if (nb_found == intervals[idx_rootpos_].length)
+                    if(cmp_result.nb_found == all_chords[i_chType][INTERVALS].length){ //full chord found!
+                        if(cmp_result.nb_found>bestNbFound){ //keep chord with maximum number of similar interval
+                            bestNbFound=cmp_result.nb_found;
+                            idx_rootpos=i_rPos;
+                            idx_chtype=i_chType;
+                            if (bestNbFound == intervals[i_rPos].length)
                                 all_found = true;
                         } //else
                             // console.log('!! Something wrong with "chord_type" list');
                     }
-                    idx_chtype_arr.push(idx_chtype_); //save partial results
-                    idx_rootpos_arr.push(idx_rootpos_);
+                    idx_chtype_arr.push(i_chType); //save partial results
+                    idx_rootpos_arr.push(i_rPos);
                     cmp_result_arr.push(cmp_result.cmp_arr);
                     nb_found_arr.push(cmp_result.nb_found);
                 }
@@ -344,10 +344,10 @@ MuseScore {
             // console.log('other partial chords: '+ idx_chtype_arr);
             // console.log('root_pos: '+ idx_rootpos_arr);
             // console.log('cmp_result_arr: '+ cmp_result_arr);
-            nb_found = nb_found_arr.reduce(function(a,c){return Math.max(a,c)});
-            console.log('nb_found',nb_found,'\n   root / chord / result:');
+            bestNbFound = nb_found_arr.reduce(function(a,c){return Math.max(a,c)});
+            console.log('bestNbFound',bestNbFound,'\n   root / chord / result:');
             for(var i=0; i<cmp_result_arr.length; i++) {
-                if ( nb_found_arr[i]==nb_found )
+                if ( nb_found_arr[i]==bestNbFound )
                     console.log('    '+idx_rootpos_arr[i]+'/'+all_chords[idx_chtype_arr[i]][INTERVALS]+'/'+cmp_result_arr[i]);
             }
 
