@@ -7,6 +7,8 @@
 //               - Find if it is possible to colorize chord symbols according to score defaults? MS preferences?
 //                    If so, colorize chords (and notes?) according to prevailing defaults
 //  TODO: (must order chord_type from short to long?)
+//        spell 79(no5) chord alongside m6 equivalent?
+//  Qs: If Bass is not lowest note, should we check Bass legality using Bass, or actual lowest note?
 //
 //  Code Repository & Documentation: https://github.com/AniMikatamon/MuseScorePlugins
 //  Code Issues: https://github.com/????/MuseScorePlugins/issues
@@ -138,7 +140,7 @@ MuseScore {
         var chord_notes=new Array();
 
         for(var i=0; i<chord.length; i++)
-            chord_notes[i] = chord[i].pitch%mod; // remove octaves - or not
+            chord_notes[i] = chord[i].pitch%mod; // remove octaves (if mod=12)
 
         chord_notes.sort(function(a, b) { return a - b; }); //sort notes
 
@@ -205,7 +207,7 @@ MuseScore {
         };
     }
         
-    function getChordName(chord,keysig) {
+        function getChordName(chord,keysig) {
 //        var INVERSION_NOTATION = 0; //set to 0: inversions are not shown
                                     //set to 1: inversions are noted with superscript 1, 2 or 3
                                     //set to 2: figured bass notation is used instead
@@ -241,26 +243,36 @@ MuseScore {
         // intervals (number of semitones from root note) for main chords types...          //TODO : revoir fonctionnement et identifier d'abord triad, puis seventh ?
         //          0    1   2    3        4   5          6      7    8         9     10    11
         // numeric: R,  b9,  9,  m3(#9),  M3, 11(sus4), #11(b5), 5,  #5(b13),  13(6),  7,   M7  //Ziya
+        const ENDBBS = "END BBS";
         const STR = 0;
         const INTERVALS = 1;
+        const BASS5thALLOWED = 2, OK5 = true, NOT5 = false, SYM = false/*i.e. meaningless*/;
+        const MINOCTAVEINTERVAL = 3; // needed just for one chord... 
         const all_chords = [
-            // semi-automatically generated from previous chord_type & chord_str
-            [ "",           [4,7] ],            //00: M (0)*
-            [ "m",          [3,7] ],            //01: m*
-            [ "dim",        [3,6] ],            //02: dim*
+            // BBS chords - (2.#) numbering per https://www.sunshinetracks.com/chords.pdf
+            //              (p#) numbering for page no. in 1980 "Bible"
+            [ "",           [4,7],    OK5 ],    //(2.1) M (0)*
+            [ "7",          [4,7,10], OK5 ],    //(2.2) 7 = Dominant/BBS Seventh*
+            [ "Maj7",       [4,7,11], NOT5 ],   //(2.3) M7 = Major Seventh*
+            [ "(add9)",     [4,7,2],  NOT5 ],   //(2.4) add9 = Major additional Ninth*
+            [ "6(no5)",     [4,9],    NOT5 ],   //(p13) Major Sixth without 5* (not to be confused with m)
+            [ "6",          [4,7,9],  NOT5 ],   //(2.5) add6 = Major Sixth* (not to be confused with m7)
+            [ "79(no5)",    [4,10,2], NOT5, 3 ],//(2.6) 7(9) = Dominant Seventh, plus Ninth, no Fifth*    
+            [ "m",          [3,7],    OK5 ],    //(2.7) m* (not to be confused with 6no5)
+            [ "m6",         [3,7,9],  NOT5 ],   //(2.8) m / 79(no root)* (not to be confused with Half Dimished)
+            [ "m7",         [3,7,10], OK5 ],    //(2.9) m7 = minor Seventh* (not to be confused with Major 6)
+            [ "o7",         [3,6,9],  SYM ],    //(2.10) dim7 = Diminished Seventh*
+            [ "dim",        [3,6],    NOT5 ],   //(p260) dim triad* 
+            [ "aug",        [4,8],    SYM ],    //(2.11) #5 = Augmented / Majör Raised Fifth*
+            [ "0",          [3,6,10], OK5 ],    //(p255) m7b5 = ø = minor 7th, Flat Fifth* / Half Diminished
+            [ ENDBBS, [0,0,0] ],
+            // non-BBS chords (numberings meaningless, carried over from from original list)
             [ "sus4",       [5,7] ],            //03: sus4 = Suspended Fourth*
             [ "7sus4",      [5,7,10] ],         //04: 7sus4 = Dominant7, Suspended Fourth*
-            [ "Maj7",       [4,7,11] ],         //05: M7 = Major Seventh*
             [ "m(Maj7)",    [3,7,11] ],         //06: mMa7 = minor Major Seventh*
-            [ "m7",         [3,7,10] ],         //07: m7 = minor Seventh*
-            [ "7",          [4,7,10] ],         //08: 7 = Dominant Seventh*
-            [ "o7",         [3,6,9] ],          //09: dim7 = Diminished Seventh*
             [ "Maj7(#5)",   [4,8,11] ],         //10: #5Maj7 = Major Seventh, Raised Fifth*
             [ "7(#5)",      [4,8,10] ],         //11: #57 = Dominant Seventh, Raised Fifth*
-            [ "aug",        [4,8] ],            //12: #5 = Majör Raised Fifth*
-            [ "0",          [3,6,10] ],         //13: m7b5 = ø = minor 7th, Flat Fifth* / Half Diminished
             [ "7(b5)",      [4,6,10] ],         //14: M7b5 = Major 7th, Flat Fifth*                     
-            [ "(add9)",     [4,7,2] ],          //15: add9 = Major additional Ninth*
             [ "Maj9",       [4,7,11,2] ],       //16: Maj7(9) = Major Seventh, plus Ninth*    
             [ "9",          [4,7,10,2] ],       //17: 7(9) = Dominant Seventh, plus Ninth*    
             [ "m(add9)",    [3,7,2] ],          //18: add9 = minor additional Ninth*
@@ -275,15 +287,15 @@ MuseScore {
             [ "7(b9)",      [4,7,10,1] ],       //27: 7(b9) = Dominant Seventh, plus Flattened Ninth*
             [ "7(b13)",     [4,7,10,8] ],       //28: 7(b13) =  Dom. Seventh, Flattened Thirteenth*
             [ "7(b9/b13)",  [4,7,10,1,8] ],     //29: 7(b13b9) =  Dom. Seventh, Flattened Thirteenth, plus Flattened Ninth* 
-            [ "11(b9/b13)", [4,7,10,1,5,8] ],      //30: 7(b13b911) =  Dom. Seventh, Flattened Thirteenth plus Flattenet Ninth, plus Eleventh* 
+            [ "11(b9/b13)", [4,7,10,1,5,8] ],   //30: 7(b13b911) =  Dom. Seventh, Flattened Thirteenth plus Flattenet Ninth, plus Eleventh* 
             [ "7(#9)",      [4,7,10,3] ],       //31: 7(#9) = Dominant Seventh, plus Sharp Ninth*
             [ "m7(11)",     [3,7,10,5] ],       //32: m7(11) = minor Seventh, plus Eleventh*
             [ "m11",        [3,7,10,2,5] ],     //33: m9(11) = minor Seventh, plus Eleventh, plus Ninth* 
             [ "x", [0,0,0] ]                    //34: Dummy
-        ];                                               
+        ];
         //Notice: [2,7],     //sus2  = Suspended Two // Not recognized; Recognized as 5sus/1 eg. c,d,g = Gsus4/C
-        //Notice: [4,7,9],   //6  = Sixth // Not recognized; Recognized as vim7/1 eg. c,e,g,a = Am7/C
-        //Notice: [3,7,9],   //m6 = Minor Sixth // Not recognized; Recognized as vim7b5/1 eg. c,e,g,a = Am7b5/C
+        //(distinguishable using Bass)Notice: [4,7,9],   //6  = Sixth // Not recognized; Recognized as vim7/1 eg. c,e,g,a = Am7/C
+        //(distinguishable using Bass)Notice: [3,7,9],   //m6 = Minor Sixth // Not recognized; Recognized as vim7b5/1 eg. c,e,g,a = Am7b5/C
         //Notice: [4,7,9,2], //6(9) = Nine Sixth //Removed; clashed with m7(11)
         //Notive: [7],       //1+5 //Removed; has some problems
                             
@@ -299,36 +311,52 @@ MuseScore {
         /*var major_scale_chord_type = [[0,3], [1,4], [1,4], [0,3], [0,5], [1,4], [2,6]]; //first index is for triads, second for seventh chords.
         var minor_scale_chord_type = [[0,4], [2,6], [0,3], [1,4], [0,5], [0,3], [2,6]];*/
 
-        // ---------- SORT CHORD from bass to soprano --------
+        // ---------- SORT CHORD from lowest to highest --------
         chord.sort(function(a, b) { return (a.pitch) - (b.pitch); }); //bass note is now chord[0]
         
-        //debug:
-//        for(var i=0; i<chord.length; i++){
-//            console.log('pitch note ' + i + ': ' + chord[i].pitch + ' -> ' + chord[i].pitch%12);
-//        }   
-        
         var sorted_chord_uniq = remove_dup_mod12(chord); //remove multiple occurence of octave notes in chord
+        console.log('sorted chord: ' + sorted_chord_uniq);
         var intervals = find_intervals(sorted_chord_uniq);
-        
+
         //debug:
         //for(var i=0; i<chord_uniq.length; i++) console.log('pitch note ' + i + ': ' + chord_uniq[i]);
         // console.log('compare: ' + compare_arr([0,1,2,3,4,5],[1,3,4,2])); //returns [0,1,1,1,1,0}
         
-        
         // ---------- Compare intervals with chord types for identification ---------- 
         var idx_chtype=-1, idx_rootpos=-1, bestNbFound=0, all_found = false;
         var idx_chtype_arr=[], idx_rootpos_arr=[], cmp_result_arr=[], nb_found_arr=[];
+        var isBBS = true, foundBBS = false, foundGoodBass = false;
         for(var i_chType=0; i_chType<all_chords.length; i_chType++){ //chord types. 
+            var currChord = all_chords[i_chType];
+            if (currChord[STR] == ENDBBS)
+                { isBBS = false; continue; }
             for(var i_rPos=0; i_rPos<intervals.length; i_rPos++){ //loop through the intervals = possible root positions
-                var cmp_result = compare_arr(all_chords[i_chType][INTERVALS], intervals[i_rPos]);
+                var cmp_result = compare_arr(currChord[INTERVALS], intervals[i_rPos]);
                 if(cmp_result.nb_found>0){ //found some intervals
-                    if(cmp_result.nb_found == all_chords[i_chType][INTERVALS].length){ //full chord found!
-                        if(cmp_result.nb_found>bestNbFound){ //keep chord with maximum number of similar interval
-                            bestNbFound=cmp_result.nb_found;
-                            idx_rootpos=i_rPos;
-                            idx_chtype=i_chType;
-                            if (bestNbFound == intervals[i_rPos].length)
-                                all_found = true;
+                    if(cmp_result.nb_found == currChord[INTERVALS].length){ //full chord found!
+                        var currBassGood = false;
+                        var df = cmp_result.nb_found - bestNbFound;
+                        if(df > 0                              //keep chord with maximum number of matching intervals
+                                  || (df == 0 && !foundGoodBass)) {  //OR with a better Bass note
+                            if (isBBS) {
+                                // check if new Bass is good
+                                var bassInterval = (chord[0].pitch+12-sorted_chord_uniq[i_rPos])%12;
+                                currBassGood = (bassInterval == 0
+                                                || (currChord[BASS5thALLOWED] && (bassInterval == 7
+                                                                                  || bassInterval == 6)));
+                                console.log('bassInterval='+bassInterval+'  currBassGood='+currBassGood
+                                            +'  '+currChord[STR]+'/inv'+i_rPos+'  found',cmp_result.nb_found);
+                            }
+                            if (df > 0 || currBassGood) {
+                                // found something better
+                                foundBBS = isBBS;
+                                foundGoodBass = currBassGood;
+                                bestNbFound = cmp_result.nb_found;
+                                idx_rootpos = i_rPos;
+                                idx_chtype = i_chType;
+                                if (bestNbFound == intervals[i_rPos].length)
+                                    all_found = true;
+                            }
                         } //else
                             // console.log('!! Something wrong with "chord_type" list');
                     }
@@ -345,10 +373,16 @@ MuseScore {
             // console.log('root_pos: '+ idx_rootpos_arr);
             // console.log('cmp_result_arr: '+ cmp_result_arr);
             bestNbFound = nb_found_arr.reduce(function(a,c){return Math.max(a,c)});
-            console.log('bestNbFound',bestNbFound,'\n   root / chord / result:');
+            console.log('bestNbFound',bestNbFound,'\n    chord / result:');
             for(var i=0; i<cmp_result_arr.length; i++) {
-                if ( nb_found_arr[i]==bestNbFound )
-                    console.log('    '+idx_rootpos_arr[i]+'/'+all_chords[idx_chtype_arr[i]][INTERVALS]+'/'+cmp_result_arr[i]);
+                if ( nb_found_arr[i]==bestNbFound ) {
+                    var rtNote = chord.find(function(nt){return nt.pitch%12 == sorted_chord_uniq[idx_rootpos_arr[i]]%12});
+                    console.log('    '+getNoteName(rtNote.tpc)
+                                      +all_chords[idx_chtype_arr[i]][STR]
+                                      +'('+all_chords[idx_chtype_arr[i]][INTERVALS]+') /'+cmp_result_arr[i]);
+                    // 			rootNote=sorted_chord_uniq[idx_rootpos];
+                    //  getNoteName(regular_chord[0].tpc);
+                }
             }
 
             for(var i=0; i<cmp_result_arr.length; i++){
@@ -373,7 +407,7 @@ MuseScore {
         var seventhchord=0;    
         
 		if(idx_chtype>=0){
-            console.log('FOUND CHORD number '+ idx_chtype +'! root_pos: '+idx_rootpos);
+            console.log('FOUND CHORD ['+ all_chords[idx_chtype][STR] +']! root_pos: '+idx_rootpos);
             console.log('\t interval: ' + intervals[idx_rootpos]);
             if (idx_chtype == 1 || idx_chtype == 2 || idx_chtype == 3 || idx_chtype == 12 ) {
 				seventhchord=0;
@@ -399,7 +433,7 @@ MuseScore {
         
         var chordName='';
         var chordNameRoman='';
-        if (rootNote !== null) { // ----- the chord was identified
+        if (rootNote !== null) { // ----- a chord was identified
             for(i=0; i<chord.length; i++){  // ---- color notes and find root note
                 if((chord[i].pitch%12) === (rootNote%12)){  //color root note
                     regular_chord[0] = chord[i];
@@ -516,7 +550,9 @@ MuseScore {
 
         return {
             chordName:      chordName,
-            matchAllNotes:  all_found
+            matchAllNotes:  all_found,
+            isBBSchord:     foundBBS,
+            goodBass:       foundGoodBass
         };
     }
     
@@ -736,7 +772,9 @@ MuseScore {
                 var gcnRes = getChordName(full_chord,cursor.keySignature);
                 chordName = gcnRes.chordName;
                 curr_matched_all = gcnRes.matchAllNotes;
-                console.log('\tchordName: ' + chordName + (gcnRes.matchAllNotes?'':partialCodeStr));
+                console.log('\tchordName: ' + chordName + (gcnRes.matchAllNotes?'':partialCodeStr)
+                            + ' - ' + (gcnRes.isBBSchord?'':'non-') + 'BBS chord ('
+                            + (gcnRes.goodBass?'strong':'weak') + ' voicing)');
 
                 // if (chordName !== '') { //chord has been identified
                 var harmonyText = chordName, harmonyColor = black;
