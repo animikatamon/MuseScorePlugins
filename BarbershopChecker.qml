@@ -6,10 +6,16 @@
 //               - Better recognize minor key (add sub-option for Minor?)
 //               - Find if it is possible to colorize chord symbols according to score defaults? MS preferences?
 //                    If so, colorize chords (and notes?) according to prevailing defaults
-//  TODO: (must order chord_type from short to long?)
-//        use all staves, regardless of selection
-//        don't test/output chords with less than 3 notes
+//  TODO: don't test/output chords with less than 3 notes
+//        add test cases for aug7 + dom7b5
+//        display text if notehead already changed?
 //        test on 4 staves
+//        test different flag combos
+//        d̶o̶n̶'̶t̶ d̶i̶s̶p̶l̶a̶y̶ c̶h̶o̶r̶d̶ c̶o̶d̶e̶ o̶n̶l̶y̶ i̶f̶ n̶o̶t̶e̶s̶ a̶r̶e̶ e̶x̶a̶c̶t̶l̶y̶ t̶h̶e̶ s̶a̶m̶e̶
+//        d̶i̶s̶p̶l̶a̶y̶ o̶n̶l̶y̶ ?̶?̶ f̶o̶r̶ u̶n̶m̶a̶t̶c̶h̶i̶n̶g̶ c̶h̶o̶r̶d̶s̶
+//        put err text on correct staff/s?
+//        try suggesting ?? chords only on BBS chords
+//        use all staves, regardless of selection
 //        spell 79(no5) chord alongside m6 equivalent?
 //  possibly older issues:
 //        make sure to colorize only notes of fully recognized chords (regardless of whether Bass is OK)
@@ -49,7 +55,7 @@ import Qt.labs.settings 1.0
 MuseScore {
     menuPath: "Plugins.Chords.Barbershop Checker + Chord Analyzer"
     description: 'Check adherence of arrangement to Barbershop Harmony rules'
-    version: "0.9"
+    version: "0.91"
     
 //    pluginType: "dock"
 //    dockArea:   "left"
@@ -237,7 +243,7 @@ MuseScore {
         };
     }
         
-        function getChordName(chord,keysig) {
+        function checkWholeChord(chord,keysig) {
 //        var INVERSION_NOTATION = 0; //set to 0: inversions are not shown
                                     //set to 1: inversions are noted with superscript 1, 2 or 3
                                     //set to 2: figured bass notation is used instead
@@ -284,10 +290,10 @@ MuseScore {
             [ "",           [4,7],    OK5 ],    //(2.1) M (0)*
             [ "7",          [4,7,10], OK5 ],    //(2.2) 7 = Dominant/BBS Seventh*
             [ "Maj7",       [4,7,11], NOT5 ],   //(2.3) M7 = Major Seventh*
-            [ "(add9)",     [4,7,2],  NOT5 ],   //(2.4) add9 = Major additional Ninth*
+            [ "(add9)",     [4,7,2],  NOT5, 2 ],//(2.4) add9 = Major additional Ninth*
             [ "6(no5)",     [4,9],    NOT5 ],   //(p13) Major Sixth without 5* (not to be confused with m)
             [ "6",          [4,7,9],  NOT5 ],   //(2.5) add6 = Major Sixth* (not to be confused with m7)
-            [ "79(no5)",    [4,10,2], NOT5, 3 ],//(2.6) 7(9) = Dominant Seventh, plus Ninth, no Fifth*    
+            [ "79(no5)",    [4,10,2], NOT5, 2 ],//(2.6) 7(9) = Dominant Seventh, plus Ninth, no Fifth*    
             [ "m",          [3,7],    OK5 ],    //(2.7) m* (not to be confused with 6no5)
             [ "m6",         [3,7,9],  NOT5 ],   //(2.8) m / 79(no root)* (not to be confused with Half Dimished)
             [ "m7",         [3,7,10], OK5 ],    //(2.9) m7 = minor Seventh* (not to be confused with Major 6)
@@ -295,14 +301,14 @@ MuseScore {
             [ "dim",        [3,6],    NOT5 ],   //(p260) dim triad* 
             [ "aug",        [4,8],    SYM ],    //(2.11) #5 = Augmented / Majör Raised Fifth*
             [ "0",          [3,6,10], OK5 ],    //(p255) m7b5 = ø = minor 7th, Flat Fifth* / Half Diminished
+            [ "aug7",       [4,8,10], NOT5 ],   //11: #57 = Dominant Seventh, Raised Fifth*
+            [ "7(b5)",      [4,6,10], SYM ],    //14: M7b5 = Dom 7th, Flat Fifth*                     
             [ ENDBBS, [0,0,0] ],
             // non-BBS chords (numberings meaningless, carried over from from original list)
             [ "sus4",       [5,7] ],            //03: sus4 = Suspended Fourth*
             [ "7sus4",      [5,7,10] ],         //04: 7sus4 = Dominant7, Suspended Fourth*
             [ "m(Maj7)",    [3,7,11] ],         //06: mMa7 = minor Major Seventh*
             [ "Maj7(#5)",   [4,8,11] ],         //10: #5Maj7 = Major Seventh, Raised Fifth*
-            [ "7(#5)",      [4,8,10] ],         //11: #57 = Dominant Seventh, Raised Fifth*
-            [ "7(b5)",      [4,6,10] ],         //14: M7b5 = Major 7th, Flat Fifth*                     
             [ "Maj9",       [4,7,11,2] ],       //16: Maj7(9) = Major Seventh, plus Ninth*    
             [ "9",          [4,7,10,2] ],       //17: 7(9) = Dominant Seventh, plus Ninth*    
             [ "m(add9)",    [3,7,2] ],          //18: add9 = minor additional Ninth*
@@ -379,20 +385,20 @@ MuseScore {
                             }
                             if (df > 0 || currBassGood) {
                                 // found something better
-                                foundBBS = isBBS;
-                                foundGoodBass = currBassGood;
                                 issues = [];
                                 if ( isBBS && !currBassGood )
-                                    issues.push({ notes:[chord[0]], msg:"Weak voicing" });
-                                if (defined(currChord[MINOCTAVEINTERVAL])) {
+                                    issues.push({ notes:[chord[0]], msg:"Voicing" });
+                                if (typeof(currChord[MINOCTAVEINTERVAL]) !== 'undefined') {
                                     var idx4octave = currChord[MINOCTAVEINTERVAL];
                                     var rtNote = chord.find(function(nt){return nt.pitch%12 == sorted_chord_uniq[i_rPos]%12});
                                     var octNote = chord.find(function(nt){return nt.pitch%12 == (sorted_chord_uniq[i_rPos] +
                                                                                                  currChord[INTERVALS][idx4octave])%12});
-                                    console.log('  check octave:'+idx4octave,'root='+rtNote.pitch,'oct=',octNote);
+                                    console.log('  check octave:'+idx4octave,'root='+rtNote.pitch,'oct=',octNote.pitch);
                                     if (octNote.pitch - rtNote.pitch < 12)
-                                        issues.push({ notes:[rtNote, octNote], msg:"9 too low" });
+                                        issues.push({ notes:[rtNote, octNote], msg:"Low 9" });
                                 }
+                                foundBBS = isBBS;
+                                foundGoodBass = currBassGood;
                                 bestNbFound = cmp_result.nb_found;
                                 idx_rootpos = i_rPos;
                                 idx_chtype = i_chType;
@@ -639,24 +645,20 @@ MuseScore {
         notes.sort(function(a, b) { return (a.pitch) - (b.pitch); });
         var staffLayout = findStaffLayout(notes), part2, nt, msg;
 
-        nt = notes.reduce(function(a, b){return (a.track>b.track? a : b)});
-        var bassTrack = nt.track;
-        // var bassTrack = notes.reduce(function(p, n){return Math.max(p, n.track)}, -1);
-        if (notes[0].track != bassTrack) {
+        nt = notes.reduce(function(a, b){return (a.track>b.track ? a : b)}); 
+        if (notes[0].pitch < nt.pitch) {
             if (part2 = partName(staffLayout, notes[0].track))
-                msg = part2 + ' below Bass';
+                msg = part2 + ' < Bass';
             else
                 msg = 'Bass not lowest?';
             console.log(msg+': t'+notes[0].track+'p'+notes[0].pitch+' / p'+nt.pitch);
             res.push({ msg:msg, notes:[notes[0], nt]});
         }
 
-        nt = notes.reduce(function(a, b){return (a.track<b.track? a : b)});
-        var tenorTrack = nt.track;
-        // var tenorTrack = notes.reduce(function(p, n){return Math.min(p, n.track)}, 100);
-        if (notes[notes.length-1].track != tenorTrack) {
+        nt = notes.reduce(function(a, b){return (a.track<b.track ? a : b)});
+        if (notes[notes.length-1].pitch > nt.pitch) {
             if (part2 = partName(staffLayout, notes[notes.length-1].track))
-                msg = 'Tenor below ' + part2;
+                msg = 'Tenor < ' + part2;
             else
                 msg = 'Tenor not highest?';
             console.log(msg+': p'+nt.pitch+' / t'+notes[notes.length-1].track+'p'+notes[notes.length-1].pitch);
@@ -668,9 +670,9 @@ MuseScore {
             var diff = notes[i].pitch - notes[i-1].pitch;
             if (diff <= 1) {
                 if (diff == 1)
-                    msg = 'Semitone interval';
+                    msg = 'Semitone!';
                 else 
-                    msg = 'Parts on same pitch';
+                    msg = 'Doubled note';
                 console.log(msg+': t'+notes[i].track+'p'+notes[i].pitch+
                                 ' / t'+notes[i-1].track+'p'+notes[i-1].pitch);
                 res.push({ msg:msg, notes:[notes[i-1], notes[i]]});
@@ -778,6 +780,27 @@ MuseScore {
         }
     }
 
+    function displayErr(errLine, cursor, bChordText, noteHeadFunc) {
+        var anyCurrentNotes = false; 
+        for (var n = 0; n < errLine.notes.length; n++) {
+            var nt = errLine.notes[n];
+            if (nt.parent.parent.tick == cursor.tick) {
+                anyCurrentNotes = true;
+                if (settings.modifyNoteheads) {
+                    noteHeadFunc(nt);
+                    nt.color = 'red';
+                }
+            }
+        }
+        if ((settings.showTextRemarks && (anyCurrentNotes || bChordText))
+            || ( !anyCurrentNotes && bChordText)) {
+            var newText = newElement(Element.STAFF_TEXT);
+            newText.text = errLine.msg;
+            newText.color = 'red';
+            cursor.add(newText);
+        }
+    }
+
     function runsheet() {
 
         if (typeof curScore === 'undefined') {
@@ -821,39 +844,24 @@ MuseScore {
                 if (fCheckBBSrules) {
                     cceRes = checkChordElements(full_chord);
                     for (var i = 0; i < cceRes.length; i++) {
-                        var addedErrText = false;
-                        for (var n = 0; n < cceRes[i].notes.length; n++) {
-                            var nt = cceRes[i].notes[n];
-                            if (nt.parent.parent.tick == cursor.tick) {
-                                if (settings.showTextRemarks && !addedErrText) {
-                                    var newText = newElement(Element.STAFF_TEXT);
-                                    newText.text = cceRes[i].msg;
-                                    newText.color = 'red';
-                                    cursor.add(newText);
-                                    addedErrText = true;
-                                }
-                                if (settings.modifyNoteheads) {
-                                    nt.headScheme = NoteHeadScheme.HEAD_PITCHNAME;
-                                    nt.color = 'red';
-                                }
-                            }
-                        }
+                        displayErr(cceRes[i], cursor, false,
+                                   function(nt){ nt.headScheme = NoteHeadScheme.HEAD_PITCHNAME; });
                     }
                 }
                 var prev_chordName = chordName, prev_matched_all = curr_matched_all;
-                var gcnRes = getChordName(full_chord,cursor.keySignature);
-                chordName = gcnRes.chordName;
-                curr_matched_all = gcnRes.matchAllNotes;
-                console.log('\tchordName: ' + chordName + (gcnRes.matchAllNotes?'':partialCodeStr)
-                            + ' - ' + (gcnRes.isBBSchord?'':'non-') + 'BBS chord ('
-                            + (gcnRes.goodBass?'strong':'weak') + ' voicing)');
+                var cwcRes = checkWholeChord(full_chord,cursor.keySignature);
+                chordName = cwcRes.chordName;
+                curr_matched_all = cwcRes.matchAllNotes;
+                console.log('\tchordName: ' + chordName + (cwcRes.matchAllNotes?'':partialCodeStr)
+                            + ' - ' + (cwcRes.isBBSchord?'':'non-') + 'BBS chord ('
+                            + (cwcRes.goodBass?'strong':'weak') + ' voicing)');
 
-                if (fAlwaysAddChords || !curr_matched_all || !gcnRes.isBBSchord) { // output chord text
+                if (fAlwaysAddChords || !curr_matched_all || !cwcRes.isBBSchord) { // output chord text
                     var harmonyText = chordName, harmonyColor = black;
                     if (harmonyText) {
                         if ( !curr_matched_all )
-                            harmonyText += partialCodeStr;
-                        if ( !curr_matched_all || !gcnRes.isBBSchord )
+                            harmonyText = partialCodeStr;
+                        if ( !curr_matched_all || !cwcRes.isBBSchord )
                             harmonyColor = red;
                     }
                     var harmony = getSegmentHarmony(segment);
@@ -870,14 +878,13 @@ MuseScore {
                     }
 
                     /* when to skip displaying duplicate chord:
-                        - if current and previous fully matched
-                        OR
+                        -̶ i̶f̶ c̶u̶r̶r̶e̶n̶t̶ a̶n̶d̶ p̶r̶e̶v̶i̶o̶u̶s̶ f̶u̶l̶l̶y̶ m̶a̶t̶c̶h̶e̶d̶
+                        O̶R̶
                         - if previous chord notes identical to current (NOT mod 12. Really identical)
                     */
-                    if((prev_chordName == chordName && prev_matched_all && curr_matched_all)
-                        || areNotesEqual(prev_full_chord, full_chord)){
+                    if(/*(prev_chordName == chordName && prev_matched_all && curr_matched_all)
+                            ||*/ areNotesEqual(prev_full_chord, full_chord))
                         harmony.text = '';
-                    }
                     //console.log("xpos: "+harmony.pos.x+" ypos: "+harmony.pos.y);
                     /*staffText = newElement(Element.STAFF_TEXT);
                     staffText.text = chordName;
@@ -885,10 +892,10 @@ MuseScore {
                     cursor.add(staffText);*/
                     // }
                 }
-                if (curr_matched_all && gcnRes.isBBSchord && !gcnRes.goodBass) {
-                    gcnRes.lowNote.headGroup = NoteHeadGroup.HEAD_CIRCLED_LARGE;
-                    gcnRes.lowNote.color = 'red';
-                }
+                if (curr_matched_all)
+                    for (var i = 0; i < cwcRes.BBSissues.length; i++)
+                        displayErr(cwcRes.BBSissues[i], cursor, true,
+                                   function(nt){ nt.headGroup = NoteHeadGroup.HEAD_CIRCLED_LARGE; });
             }
             
             if ( !setToClosestNextElement(cursor, Element.CHORD) )
