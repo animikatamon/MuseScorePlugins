@@ -55,7 +55,7 @@ import Qt.labs.settings 1.0
 MuseScore {
     menuPath: "Plugins.Chords.Barbershop Checker + Chord Analyzer"
     description: 'Check adherence of arrangement to Barbershop Harmony rules'
-    version: "0.91"
+    version: "0.92"
     
 //    pluginType: "dock"
 //    dockArea:   "left"
@@ -89,6 +89,7 @@ MuseScore {
     property variant fColorChordNotes
 
     property variant partialCodeStr: "??"
+    property variant partsBBS: [ 'Tenor', 'Lead', 'Bari', 'Bass' ]
 
     property variant black     : "#000000"
     property variant colorOth3 : "#C080C0"    //color: ext.:(9/11/13)
@@ -196,6 +197,7 @@ MuseScore {
     }
     
     function areNotesEqual(chord1, chord2){
+        // currently does not check for voice-by-voice equality 
         var a1 = remove_dup(chord1);
         var a2 = remove_dup(chord2);
         return a1.length == a2.length && a1.every(function(value, i) { return value === a2[i]})
@@ -243,7 +245,7 @@ MuseScore {
         };
     }
         
-        function checkWholeChord(chord,keysig) {
+    function checkWholeChord(chord,keysig) {
 //        var INVERSION_NOTATION = 0; //set to 0: inversions are not shown
                                     //set to 1: inversions are noted with superscript 1, 2 or 3
                                     //set to 2: figured bass notation is used instead
@@ -352,6 +354,8 @@ MuseScore {
         
         var sorted_chord_uniq = remove_dup_mod12(chord); //remove multiple occurence of octave notes in chord
         console.log('sorted chord: ' + sorted_chord_uniq);
+        if (sorted_chord_uniq.length < 3) // minimal notes for triad or more
+            return { chordName: "" };
         var intervals = find_intervals(sorted_chord_uniq);
 
         //debug:
@@ -361,7 +365,7 @@ MuseScore {
         // ---------- Compare intervals with chord types for identification ---------- 
         var idx_chtype=-1, idx_rootpos=-1, bestNbFound=0, all_found = false;
         var idx_chtype_arr=[], idx_rootpos_arr=[], cmp_result_arr=[], nb_found_arr=[];
-        var isBBS = true, foundBBS = false, foundGoodBass = false, issues = null;
+        var isBBS = true, foundBBS = false, foundGoodBass = false, issues = [];
         for(var i_chType=0; i_chType<all_chords.length; i_chType++){ //chord types. 
             var currChord = all_chords[i_chType];
             if (currChord[STR] == ENDBBS)
@@ -632,13 +636,12 @@ MuseScore {
         return null;
     }
     function partName(stLayout, trk) {
-        const parts = [ 'Tenor', 'Lead', 'Bari', 'Bass' ];
         if ( ! stLayout )
             return null;
         var i = stLayout.tracks.indexOf(trk);
-        if (i < 0 || i >= parts.length)
+        if (i < 0 || i >= partsBBS.length)
             return null;
-        return parts[i];
+        return partsBBS[i];
     }
     function checkChordElements(notes) {
         var res = [];
@@ -646,9 +649,9 @@ MuseScore {
         var staffLayout = findStaffLayout(notes), part2, nt, msg;
 
         nt = notes.reduce(function(a, b){return (a.track>b.track ? a : b)}); 
-        if (notes[0].pitch < nt.pitch) {
+        if (notes[0].pitch < nt.pitch && partName(staffLayout, nt.track) == 'Bass') {
             if (part2 = partName(staffLayout, notes[0].track))
-                msg = part2 + ' < Bass';
+                msg = 'Low ' + part2;
             else
                 msg = 'Bass not lowest?';
             console.log(msg+': t'+notes[0].track+'p'+notes[0].pitch+' / p'+nt.pitch);
@@ -656,9 +659,9 @@ MuseScore {
         }
 
         nt = notes.reduce(function(a, b){return (a.track<b.track ? a : b)});
-        if (notes[notes.length-1].pitch > nt.pitch) {
+        if (notes[notes.length-1].pitch > nt.pitch && partName(staffLayout, nt.track) == 'Tenor') {
             if (part2 = partName(staffLayout, notes[notes.length-1].track))
-                msg = 'Tenor < ' + part2;
+                msg = 'High ' + part2;
             else
                 msg = 'Tenor not highest?';
             console.log(msg+': p'+nt.pitch+' / t'+notes[notes.length-1].track+'p'+notes[notes.length-1].pitch);
@@ -780,8 +783,9 @@ MuseScore {
         }
     }
 
-    function displayErr(errLine, cursor, bChordText, noteHeadFunc) {
+    function displayErr(errLine, prevErrs, cursor, isChordText, noteHeadFunc) {
         var anyCurrentNotes = false; 
+        // Mark Noteheads:
         for (var n = 0; n < errLine.notes.length; n++) {
             var nt = errLine.notes[n];
             if (nt.parent.parent.tick == cursor.tick) {
@@ -792,8 +796,15 @@ MuseScore {
                 }
             }
         }
-        if ((settings.showTextRemarks && (anyCurrentNotes || bChordText))
-            || ( !anyCurrentNotes && bChordText)) {
+        // Mark text:
+        if ((settings.showTextRemarks && (anyCurrentNotes || isChordText))
+            || ( !anyCurrentNotes && isChordText))
+        {
+            // Avoid clutter of same text with same notes
+            var isDup = prevErrs && prevErrs.some(function(pErr){ return errLine.msg == pErr.msg &&
+                                                                          areNotesEqual (errLine.notes, pErr.notes); });
+            if (isDup)
+                return;
             var newText = newElement(Element.STAFF_TEXT);
             newText.text = errLine.msg;
             newText.color = 'red';
@@ -832,7 +843,8 @@ MuseScore {
         var chordName = '';
         var curr_matched_all = false;
         var full_chord = [];
-        var cceRes;
+        var cceRes = [];
+        var prev_cwcRes_issues = [];
         while (segment=cursor.segment) { //loop through entire score
             // FIRST we get all notes on current position of the cursor, for all voices and all staves.
             var prev_full_chord = full_chord;
@@ -842,9 +854,10 @@ MuseScore {
                 console.log('------');
                 console.log('nb of notes found: ' + full_chord.length);
                 if (fCheckBBSrules) {
+                    var prev_cceRes = cceRes;
                     cceRes = checkChordElements(full_chord);
                     for (var i = 0; i < cceRes.length; i++) {
-                        displayErr(cceRes[i], cursor, false,
+                        displayErr(cceRes[i], prev_cceRes, cursor, false,
                                    function(nt){ nt.headScheme = NoteHeadScheme.HEAD_PITCHNAME; });
                     }
                 }
@@ -894,8 +907,10 @@ MuseScore {
                 }
                 if (curr_matched_all)
                     for (var i = 0; i < cwcRes.BBSissues.length; i++)
-                        displayErr(cwcRes.BBSissues[i], cursor, true,
+                        displayErr(cwcRes.BBSissues[i], prev_cwcRes_issues, cursor, 
+                                   !areNotesEqual(prev_full_chord, full_chord),
                                    function(nt){ nt.headGroup = NoteHeadGroup.HEAD_CIRCLED_LARGE; });
+                prev_cwcRes_issues = cwcRes.BBSissues;
             }
             
             if ( !setToClosestNextElement(cursor, Element.CHORD) )
