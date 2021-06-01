@@ -4,19 +4,15 @@
 //
 //  Suggestions: - Mark incomplete triads (with 3 voices and above?)
 //               - Better recognize minor key (add sub-option for Minor?)
-//               - Find if it is possible to colorize chord symbols according to score defaults? MS preferences?
-//                    If so, colorize chords (and notes?) according to prevailing defaults
+//                   (less important becasue BBS is mostly in Major key?)
 //  TODO: don't test/output chords with less than 3 notes
 //        add test cases for aug7 + dom7b5
-//        display text if notehead already changed?
 //        test on 4 staves
 //        test different flag combos
-//        d̶o̶n̶'̶t̶ d̶i̶s̶p̶l̶a̶y̶ c̶h̶o̶r̶d̶ c̶o̶d̶e̶ o̶n̶l̶y̶ i̶f̶ n̶o̶t̶e̶s̶ a̶r̶e̶ e̶x̶a̶c̶t̶l̶y̶ t̶h̶e̶ s̶a̶m̶e̶
-//        d̶i̶s̶p̶l̶a̶y̶ o̶n̶l̶y̶ ?̶?̶ f̶o̶r̶ u̶n̶m̶a̶t̶c̶h̶i̶n̶g̶ c̶h̶o̶r̶d̶s̶
 //        put err text on correct staff/s?
-//        try suggesting ?? chords only on BBS chords
+//        try suggesting BBS chords instead of XX chords 
 //        use all staves, regardless of selection
-//        spell 79(no5) chord alongside m6 equivalent?
+//        spell 79(noRoot) chord alongside m6 equivalent?
 //  possibly older issues:
 //        make sure to colorize only notes of fully recognized chords (regardless of whether Bass is OK)
 //        stop traversing notes where only older notes are included in selection (what if one of chord notes stops and the other continue?)
@@ -88,7 +84,7 @@ MuseScore {
     property variant fDisplayRomanChords
     property variant fColorChordNotes
 
-    property variant partialCodeStr: "??"
+    property variant partialCodeStr: "XX"
     property variant partsBBS: [ 'Tenor', 'Lead', 'Bari', 'Bass' ]
 
     property variant black     : "#000000"
