@@ -753,8 +753,9 @@ MuseScore {
                     harmony = newElement(Element.HARMONY);
                     harmony.text = harmonyText;
                     harmony.color = harmonyColor;
-                    //console.log("text type:  " + staffText.type);
-                    cursor.add(harmony);
+                    if (harmonyText != '') { // Only add it if not empty
+                        cursor.add(harmony);
+                    }
                 }
 
                 /* when to skip displaying duplicate chord:
