@@ -30,17 +30,17 @@
 //=============================================================================
 
 import MuseScore 3.0
-import QtQuick 2.0
+import QtQuick 2.9
 
-import QtQuick.Layouts 1.0
-import QtQuick.Controls 1.0
+import QtQuick.Layouts 1.3
+import QtQuick.Controls 1.4
 import QtQuick.Dialogs 1.0
 import Qt.labs.settings 1.0
 
 MuseScore {
     menuPath: "Plugins.Chords.Chord Identifier (Pop & Jazz)"
     description: 'Identify and add Chord Symbols to score ("Automatic Ctrl-K")'
-    version: "3.4"
+    version: "4.4"
 
     
 //    pluginType: "dock"
@@ -51,6 +51,18 @@ MuseScore {
     height: 260
     id: chordDialog
     
+    //4.4 title: "Chord Identifier (Pop & Jazz)"
+    //4.4 categoryCode: "composing-arranging-tools"
+    //4.4 pluginType: "dialog"
+
+    Component.onCompleted : {
+        if (mscoreMajorVersion >= 4) {
+            chordDialog.title = "Chord Identifier (Pop & Jazz)";
+            chordDialog.categoryCode = "composing-arranging-tools";
+            chordDialog.pluginType = "dialog";
+        }
+    }
+
     Settings {
         id: settings
         category: "t2"
@@ -663,7 +675,7 @@ MuseScore {
     function runsheet() {
 
         if (typeof curScore === 'undefined') {
-            Qt.quit();
+            quit();
         }
         if (mscoreMajorVersion < 3 
             || (mscoreMajorVersion == 3 && mscoreMinorVersion < 3)) {
@@ -753,9 +765,8 @@ MuseScore {
                     harmony = newElement(Element.HARMONY);
                     harmony.text = harmonyText;
                     harmony.color = harmonyColor;
-                    if (harmonyText != '') { // Only add it if not empty
-                        cursor.add(harmony);
-                    }
+                    //console.log("text type:  " + staffText.type);
+                    cursor.add(harmony);
                 }
 
                 /* when to skip displaying duplicate chord:
@@ -801,7 +812,7 @@ MuseScore {
                 cursor.add(staffText);*/
             }
         }
-//        Qt.quit();
+//        quit();
     } // end onRun
 
 
@@ -988,7 +999,7 @@ MuseScore {
     width: 100
     height: 40
     onClicked: {
-      Qt.quit();
+      quit();
     }
   }
 
@@ -1006,7 +1017,7 @@ MuseScore {
       curScore.startCmd();
       runsheet();
       curScore.endCmd();
-      Qt.quit();
+      quit();
     }
   }
 
