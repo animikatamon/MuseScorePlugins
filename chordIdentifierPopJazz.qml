@@ -51,6 +51,12 @@ MuseScore {
     height: 260
     id: chordDialog
     
+    Component.onCompleted : {
+        if (mscoreMajorVersion >= 4) {
+            chordDialog.title = "Chord Identifier (Pop & Jazz)";
+        }
+    }
+
     Settings {
         id: settings
         category: "t2"
@@ -663,7 +669,7 @@ MuseScore {
     function runsheet() {
 
         if (typeof curScore === 'undefined') {
-            Qt.quit();
+            quit();
         }
         if (mscoreMajorVersion < 3 
             || (mscoreMajorVersion == 3 && mscoreMinorVersion < 3)) {
@@ -753,9 +759,8 @@ MuseScore {
                     harmony = newElement(Element.HARMONY);
                     harmony.text = harmonyText;
                     harmony.color = harmonyColor;
-                    if (harmonyText != '') { // Only add it if not empty
-                        cursor.add(harmony);
-                    }
+                    //console.log("text type:  " + staffText.type);
+                    cursor.add(harmony);
                 }
 
                 /* when to skip displaying duplicate chord:
@@ -801,7 +806,7 @@ MuseScore {
                 cursor.add(staffText);*/
             }
         }
-//        Qt.quit();
+//        quit();
     } // end onRun
 
 
@@ -988,7 +993,7 @@ MuseScore {
     width: 100
     height: 40
     onClicked: {
-      Qt.quit();
+      quit();
     }
   }
 
@@ -1006,7 +1011,7 @@ MuseScore {
       curScore.startCmd();
       runsheet();
       curScore.endCmd();
-      Qt.quit();
+      quit();
     }
   }
 
