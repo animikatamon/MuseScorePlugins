@@ -44,9 +44,9 @@ import MuseScore 3.0
 import QtQuick 2.9
 
 import QtQuick.Layouts 1.3
-import QtQuick.Controls 1.4
-import QtQuick.Dialogs 1.0
-import Qt.labs.settings 1.0
+import QtQuick.Controls 2.0
+//import QtQuick.Dialogs 1.0
+//import Qt.labs.settings 1.0
 
 MuseScore {
     menuPath: "Plugins.Chords.Barbershop Checker + Chord Analyzer"

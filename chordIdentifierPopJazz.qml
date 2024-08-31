@@ -33,9 +33,9 @@ import MuseScore 3.0
 import QtQuick 2.9
 
 import QtQuick.Layouts 1.3
-import QtQuick.Controls 1.4
-import QtQuick.Dialogs 1.0
-import Qt.labs.settings 1.0
+import QtQuick.Controls 2.0
+//import QtQuick.Dialogs 1.0
+//import Qt.labs.settings 1.0
 
 MuseScore {
     menuPath: "Plugins.Chords.Chord Identifier (Pop & Jazz)"
@@ -56,7 +56,7 @@ MuseScore {
     //4.4 pluginType: "dialog"
 
     Component.onCompleted : {
-        if (mscoreMajorVersion >= 4) {
+        if (mscoreMajorVersion >= 4 && mscoreMinorVersion <= 3) {
             chordDialog.title = "Chord Identifier (Pop & Jazz)";
             chordDialog.categoryCode = "composing-arranging-tools";
             chordDialog.pluginType = "dialog";
