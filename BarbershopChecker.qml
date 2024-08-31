@@ -41,17 +41,17 @@
 //=============================================================================
 
 import MuseScore 3.0
-import QtQuick 2.2
+import QtQuick 2.9
 
-import QtQuick.Layouts 1.0
-import QtQuick.Controls 1.4
-import QtQuick.Dialogs 1.0
-import Qt.labs.settings 1.0
+import QtQuick.Layouts 1.3
+import QtQuick.Controls 2.0
+//import QtQuick.Dialogs 1.0
+//import Qt.labs.settings 1.0
 
 MuseScore {
     menuPath: "Plugins.Chords.Barbershop Checker + Chord Analyzer"
     description: 'Check adherence of arrangement to Barbershop Harmony rules'
-    version: "0.92"
+    version: "4.4"
     
 //    pluginType: "dock"
 //    dockArea:   "left"
@@ -61,6 +61,18 @@ MuseScore {
     height: 320
     id: chordDialog
     
+    //4.4 title: "Barbershop Checker + Chord Analyzer"
+    //4.4 categoryCode: "composing-arranging-tools"
+    //4.4 pluginType: "dialog"
+
+    Component.onCompleted : {
+        if (mscoreMajorVersion >= 4 && mscoreMinorVersion <= 3) {
+             title = "Barbershop Checker + Chord Analyzer";
+             categoryCode = "composing-arranging-tools";
+             pluginType = "dialog";
+        }
+    }
+
     Settings {
         id: settings
         category: "BBScheckerS2"
