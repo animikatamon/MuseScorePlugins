@@ -1,200 +1,532 @@
-//=============================================================================
-//  MuseScore - Chord Identifier Plugin 
-//  Chgd. debugged fixed and new-code added by: Ziya Mete Demircan 2019/04/09 23:02
-//  Add option to use entire note duration for identification: Mendy Mendelsohn, Aug-Sep 2020
-//  Suggestions: - Mark incomplete triads (with 3 voices and above?)
-//               - Better recognize minor key (add sub-option for Minor?)
-//               - Find if it is possible to colorize chord symbols according to score defaults? MS preferences?
-//                    If so, colorize chords (and notes?) according to prevailing defaults
-//  TODO: unify chords, strings etc. into single object array
-//        (must order chord_type from short to long?)
+//==============================================
+//  Chord Identifier (Pop & Jazz) v5.0
 //
-//  Code Repository & Documentation: https://github.com/AniMikatamon/MuseScorePlugins
-//  Code Issues: https://github.com/AniMikatamon/MuseScorePlugins/issues
-//  
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License version 2
-//  as published by the Free Software Foundation and appearing in
-//  the file "LICENSE - GPLv2"
+//  https://github.com/animikatamon/MuseScorePlugins
+//  Copyright (C)2024 Joshua Boniface (joshuaboniface) - Reworking
+//  Copyright (C)2019-2024 animikatamon - Maintainer
+//  Copyright (C)2016 Emmanuel Roussel (rousselmanu) - Original Author
+//  and Other Contributors as listed there
 //
-//  Prior contributors:
-//  Copyright (C) 2016 Emmanuel Roussel - https://github.com/rousselmanu/msc_plugins
-//  I started this plugin as an improvement of the "Find Harmonies" plugin by Andresn 
-//      (https://github.com/andresn/standard-notation-experiments/tree/master/MuseScore/plugins/findharmonies)
-//      itself being an enhanced version of "findharmony" by Merte (http://musescore.org/en/project/findharmony)
-//  I took some lines of code or got inspiration from:
-//  - Berteh (https://github.com/berteh/musescore-chordsToNotes/)
-//  - Jon Ensminger (AddNoteNameNoteHeads v. 1.2 plugin)
-//  Thank you :-)
-// 
-//=============================================================================
+//  This is a major cleanup and functional improvement to the original
+//  "Chord Identifier" plugin v4.4, enough so that I believe this new
+//  header and a major version bump is prudent.
+//  The following are the major differences from v4.4:
+//
+//  * The menu/dialog is completely rewritten for MuseScore 4, based on the
+//    official "Note Names" and "Courtesy Accidentals" plugins as of MS4.4.
+//  * Incomplete chord suggestion is now handled with either a red (flag)
+//    or just placing the best guess (default) rather than "??" and red,
+//    respectively, due to both some bugs in the colour picker and the idea
+//    that most people would just want to take the match as-is and edit as
+//    needed later.
+//  * The plugin now works on explicitly selected staves. i.e. if you select
+//    only one instrument in a score of many instruments, this plugin will
+//    act ONLY on that instrument's notes, and place the chord symbol above
+//    that instrument. This is a personal choice as I find a "whole-score"
+//    chord identifier to be pretty useless in practice, and I'd much rather
+//    have dedicated chord symbols for specific instruments (e.g. guitar).
+//    One CAVEAT here is that you must select a whole grand staff to work
+//    on the whole grand staff.
+//  * The code has been completely cleaned of cruft: old commented out code
+//    blocks, disabled debug print statements, etc. have all been removed.
+//  * Comments have been improved as much as possible to be clear and aid
+//    in understanding the code. Several "attribution" comments and ancient
+//    "TODO" comments have been removed as well (that's what version control
+//    and Issues are for).
+//  * Several variable names have been renamed to make them make more sense.
+//    This includes all the configurable options which now have standardized
+//    names based on the scheme <x><X>Mode.
+//  * Functions have been named in a consistent format (camelCase) and have
+//    been given header blocks with details about what they do (as much as
+//    I could gather, at least).
+//  * A consistent code spacing style has been applied throughout: spaces
+//    between operators (e.g. "1 + 1" instead of "1+1"), variable assignment
+//    ("var x = 1" instead of "var x=1"), and consistent braces and spaces.
+//    As I'm not really a JS developer I didn't go any further on style,
+//    but this should provide a cleaner base to do so in the future.
+//
+//  Original plugin based on configCourtesyAccidentals
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 2 of the License.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//==============================================
+
+import QtQuick 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
 
 import MuseScore 3.0
-import QtQuick 2.0
-
-import QtQuick.Layouts 1.0
-import QtQuick.Controls 1.0
-import QtQuick.Dialogs 1.0
-import Qt.labs.settings 1.0
+import Muse.UiComponents 1.0
 
 MuseScore {
-    menuPath: "Plugins.Chords.Chord Identifier (Pop & Jazz)"
-    description: 'Identify and add Chord Symbols to score ("Automatic Ctrl-K")'
-    version: "3.4"
-
-    
-//    pluginType: "dock"
-//    dockArea:   "left"
-//
+    version: "2.0"
+    description: "This plugin identifies adds chord symbols automatically"
+    title: "Chord Identifier (Pop & Jazz)"
+    categoryCode: "composing-arranging-tools"
     pluginType: "dialog"
-    width: 370
-    height: 260
-    id: chordDialog
-    
+    thumbnailName: "note_names.png"
+
+    requiresScore: true
+
+    width: 464
+    height: 298
+
+    // Settings
     Settings {
         id: settings
-        category: "t2"
-        property int displayChordMode     : 0 //0: Normal chord C  F7  Gm  //1: Roman Chord level   Ⅳ
-        property int displayChordColor    : 0 //0: disable ,1 enable
-        property int inversion_notation   : 0 //0: none //1: note with superscript (1, 2 or 3) //2: figured bass notation
-        property int display_bass_note    : 1 //1: bass note is specified after a / like that: C/E for first inversion C chord.
-        property int entire_note_duration : 1 //1: consider full duration of note in chords.
-        property int hidePartialChords    : 1 //1: display ?? for incomplete chords //0: allow suggestion (with red chord)
+        property int chordMode:                 0  // 0: Normal chord (C, F7, etc.); 1: Roman chord level (IV, etc.)
+        property int bassMode:                  0  // 0: Disabled; 1: Enabled
+        property int inversionMode:             0  // 0: None; 1: Note with Superscript; 2: Figured Bass notation
+        property int partialChordMode:          0  // 0: Flag; 1: Suggest
+        property int entireDurationMode:        0  // 0: Disabled; 1: Enabled
+        property int chordColorMode:            0  // 0: Disabled; 1: Enabled
     }
 
-    property variant partialCodeStr: "??"
+    // Error dialog
 
-    property variant black     : "#000000"
-    property variant colorOth3 : "#C080C0"    //color: ext.:(9/11/13)
-    property variant colorOth2 : "#80C0C0"    //color: ext.:(9/11/13)
-    property variant colorOth1 : "#4080C0"    //color: ext.:(9/11/13)
-    property variant color7th  : "#804080"    //color: 7th
-    property variant color5th  : "#808000"    //color: 5th
-    property variant color3rd  : "#008000"    //color: 3rd (4th for suss4)
-    property variant colorroot : "#800000"    //color: Root
-//--------------------------------------------------------------------------------
-    property variant red       : "#ff0000"
-    property variant green     : "#00ff00"
-    property variant blue      : "#0000ff"
-
-    onRun: {
-        //  MM: Is this the right place to do initializations?
-        rowB.current = objFromIndex(inversionMode.buttonList, settings.inversion_notation) 
-        rowC.current = objFromIndex(symbolMode.buttonList, settings.displayChordMode) 
-        rowD.current = objFromIndex(bassMode.buttonList, settings.display_bass_note) 
-        rowE.current = objFromIndex(chordColorMode.buttonList, settings.displayChordColor) 
-        rowF.current = objFromIndex(durationMode.buttonList, settings.entire_note_duration)
-        rowG.current = objFromIndex(partialChordMode.buttonList, settings.hidePartialChords)
+    MessageDialog {
+        id: errorDialog
+        visible: false
+        //icon: StandardIcon.Warning
     }
 
-    // ---------- get note name from TPC (Tonal Pitch Class):
-    function getNoteName(note_tpc){ 
+
+    Item {
+        id: rect1
+        anchors.fill: parent
+        anchors.margins: 8
+
+        // Selector rows
+
+        ColumnLayout {
+            id: col1
+            anchors.left: parent.left
+            anchors.right: parent.right
+
+            ButtonGroup { id: symbolModeGroup }
+            ButtonGroup { id: bassModeGroup }
+            ButtonGroup { id: inversionModeGroup }
+            ButtonGroup { id: partialChordModeGroup }
+            ButtonGroup { id: durationModeGroup }
+            ButtonGroup { id: colorChordModeGroup }
+
+            Label {
+                text: "Identify Chords and add Chord Symbols"
+            }
+
+            RowLayout {
+                Rectangle { // for indentation
+                    width: 10
+                }
+
+                id: symbolModeR
+
+                Label {
+                    text: "Chord symbol type:"
+                }
+
+                RadioButton {
+                    parent: symbolModeR
+                    text: "Normal"
+                    checked: true
+                    ButtonGroup.group: symbolModeGroup
+                    onClicked: {
+                        console.log("Selected Normal chord symbol mode");
+                        settings.symbolMode = 0; 
+                    }
+                }
+
+                RadioButton {
+                    parent: symbolModeR
+                    text: "Roman"
+                    checked: false
+                    ButtonGroup.group: symbolModeGroup
+                    onClicked: {
+                        console.log("Selected Roman chord symbol mode");
+                        settings.symbolMode = 1; 
+                    }
+                }
+            }
+
+            RowLayout {
+                Rectangle { // for indentation
+                    width: 10
+                }
+
+                id: bassModeR
+
+                Label {
+                    text: "Bass note slash notation:"
+                }
+
+                RadioButton {
+                    parent: bassModeR
+                    text: "Yes"
+                    checked: true
+                    ButtonGroup.group: bassModeGroup
+                    onClicked: {
+                        console.log("Selected bass slash notation mode");
+                        settings.bassMode = 1; 
+                    }
+                }
+
+                RadioButton {
+                    parent: bassModeR
+                    text: "No"
+                    checked: false
+                    ButtonGroup.group: bassModeGroup
+                    onClicked: {
+                        console.log("Selected no bass slash notation mode");
+                        settings.bassMode = 0; 
+                    }
+                }
+            }
+
+            RowLayout {
+                Rectangle { // for indentation
+                    width: 10
+                }
+
+                id: inversionModeR
+
+                Label {
+                    text: "Add inversion numbers:"
+                }
+
+                RadioButton {
+                    parent: inversionModeR
+                    text: "No"
+                    checked: true
+                    ButtonGroup.group: inversionModeGroup
+                    onClicked: {
+                        console.log("Selected no inversion numbers mode");
+                        settings.inversionMode = 0; 
+                    }
+                }
+
+                RadioButton {
+                    parent: inversionModeR
+                    text: "Normal"
+                    checked: false
+                    ButtonGroup.group: inversionModeGroup
+                    onClicked: {
+                        console.log("Selected normal inversion numbers mode");
+                        settings.inversionMode = 1; 
+                    }
+                }
+
+                RadioButton {
+                    parent: inversionModeR
+                    text: "Figured Bass"
+                    checked: false
+                    ButtonGroup.group: inversionModeGroup
+                    onClicked: {
+                        console.log("Selected figured bass inversion numbers mode");
+                        settings.inversionMode = 2;
+                    }
+                }
+            }
+
+            RowLayout {
+                Rectangle { // for indentation
+                    width: 10
+                }
+
+                id: partialChordModeR
+
+                Label {
+                    text: "Partial chord handling:"
+                }
+
+                RadioButton {
+                    parent: partialChordModeR
+                    text: "Accept"
+                    checked: true
+                    ButtonGroup.group: partialChordModeGroup
+                    onClicked: {
+                        console.log("Selected partial chord suggest mode");
+                        settings.partialChordMode = 1; 
+                    }
+                }
+
+                RadioButton {
+                    parent: partialChordModeR
+                    text: "Flag (red)"
+                    checked: false
+                    ButtonGroup.group: partialChordModeGroup
+                    onClicked: {
+                        console.log("Selected partial chord flag mode");
+                        settings.partialChordMode = 0; 
+                    }
+                }
+            }
+
+            RowLayout {
+                Rectangle { // for indentation
+                    width: 10
+                }
+
+                id: durationModeR
+
+                Label {
+                    text: "Duration handling:"
+                }
+
+                RadioButton {
+                    parent: durationModeR
+                    text: "Entire note"
+                    checked: true
+                    ButtonGroup.group: durationModeGroup
+                    onClicked: {
+                        console.log("Selected entire note duration mode");
+                        settings.durationMode = 1; 
+                    }
+                }
+
+                RadioButton {
+                    parent: durationModeR
+                    text: "Every note"
+                    checked: false
+                    ButtonGroup.group: durationModeGroup
+                    onClicked: {
+                        console.log("Selected every note duration mode");
+                        settings.durationMode = 0; 
+                    }
+                }
+            }
+
+            RowLayout {
+                Rectangle { // for indentation
+                    width: 10
+                }
+
+                id: chordColorModeR
+
+                Label {
+                    text: "Colorize chord notes:"
+                }
+
+                RadioButton {
+                    parent: chordColorModeR
+                    text: "No"
+                    checked: true
+                    ButtonGroup.group: chordColorModeGroup
+                    onClicked: {
+                        console.log("Selected no colorize chord notes mode");
+                        settings.chordColorMode = 0; 
+                    }
+                }
+
+                RadioButton {
+                    parent: chordColorModeR
+                    text: "Yes"
+                    checked: false
+                    ButtonGroup.group: chordColorModeGroup
+                    onClicked: {
+                        console.log("Selected colorize chord notes mode");
+                        settings.chordColorMode = 1; 
+                    }
+                }
+            }
+        }
+
+        // Control buttons
+
+        FlatButton {
+            text:"Run"
+            anchors {
+                top: col1.bottom
+                topMargin: 15
+                left: rect1.left
+                leftMargin: 10
+            }
+            onClicked: {
+                curScore.startCmd();
+                run();
+                curScore.endCmd();
+                quit();
+            }
+        }
+
+        FlatButton {
+            text: "Cancel"
+            anchors {
+                top: col1.bottom
+                topMargin: 15
+                right: rect1.right
+                rightMargin: 10
+            }
+            onClicked: {
+                quit();
+            }
+        }
+    }
+
+    // if nothing is selected process whole score
+    property bool processAll: false
+
+    property var black     : "#000000"
+    property var red       : "#ff0000"
+    property var green     : "#00ff00"
+    property var blue      : "#0000ff"
+    property var colorOth3 : "#C080C0"    //color: ext.:(9/11/13)
+    property var colorOth2 : "#80C0C0"    //color: ext.:(9/11/13)
+    property var colorOth1 : "#4080C0"    //color: ext.:(9/11/13)
+    property var color7th  : "#804080"    //color: 7th
+    property var color5th  : "#808000"    //color: 5th
+    property var color3rd  : "#008000"    //color: 3rd (4th for suss4)
+    property var colorroot : "#800000"    //color: Root
+
+    // Function: getNoteName
+    //
+    // Gets the note name from the TPC (Tonal Pitch Class) of a note object
+    function getNoteName(note_tpc) {
         var notename = "";
-        var tpc_str = ["Cbb","Gbb","Dbb","Abb","Ebb","Bbb",
-            "Fb","Cb","Gb","Db","Ab","Eb","Bb","F","C","G","D","A","E","B","F#","C#","G#","D#","A#","E#","B#",
-            "F##","C##","G##","D##","A##","E##","B##","Fbb"]; //tpc -1 is at number 34 (last item).
-        if(note_tpc != 'undefined' && note_tpc<=33){
-            if(note_tpc==-1) 
-                notename=tpc_str[34];
+        var tpc_str = [
+            "Cbb","Gbb","Dbb","Abb","Ebb","Bbb",
+            "Fb","Cb","Gb","Db","Ab","Eb","Bb",
+            "F","C","G","D","A","E","B",
+            "F#","C#","G#","D#","A#","E#","B#",
+            "F##","C##","G##","D##","A##","E##","B##",
+            "Fbb" // tpc -1 is at number 34 (last item)
+        ];
+
+        if (note_tpc != 'undefined' && note_tpc<=33) {
+            if (note_tpc == -1)
+                notename = tpc_str[34];
             else
-                notename=tpc_str[note_tpc];
+                notename = tpc_str[note_tpc];
         }
         return notename;
     }
-// Roman numeral sequence for chords ①②③④⑤⑥⑦  Ⅰ  Ⅱ Ⅲ  Ⅳ  Ⅴ Ⅵ   Ⅶ Ⅷ Ⅸ Ⅹ Ⅺ Ⅻ
-    function getNoteRomanSeq(note,keysig){
+
+    // Function: getNoteRomanSeq
+    //
+    // Gets the Roman sequence value for a given note and key signature
+    function getNoteRomanSeq(note,keysig) {
         var notename = "";
-        var num=0;
-        var keysigNote = [11,6,1,8,3,10,5,0,7,2,9,4,11,6,1];
+        var num = 0;
+        var keysigNote = [
+            11, 6, 1, 8, 3, 10, 5, 0, 7, 2, 9, 4, 11, 6, 1
+        ];
         var Roman_str_flat_mode1 = ["Ⅰ","Ⅱ♭","Ⅱ","Ⅲ♭","Ⅲ","Ⅳ","Ⅴ♭","Ⅴ","Ⅵ♭","Ⅵ","Ⅶ♭","Ⅶ"];
         var Roman_str_flat_mode2 =  ["①","②♭","②","③♭","③","④","⑤♭","⑤","⑥♭","⑥","⑦♭","⑦"];
 
-        if(keysig != 'undefined' ){
-            num=(note+12-keysigNote[keysig+7])%12;
-            notename=Roman_str_flat_mode1[num];
+        if (keysig != 'undefined') {
+            num = (note + 12 - keysigNote[keysig+7]) % 12;
+            notename = Roman_str_flat_mode1[num];
 
         }
-        //console.log("keysigNote num:"+note + " "+ keysig + " "+notename);
         return notename;
     }
 
-    function string2Roman(str){
-        var strtmp="";
-        strtmp=str[0];
-        if(str.length>1 && str[1]=="♭")
-            strtmp+=str[1];
-        var Roman_str_flat_mode1 = ["Ⅰ","Ⅱ♭","Ⅱ","Ⅲ♭","Ⅲ","Ⅳ","Ⅴ♭","Ⅴ","Ⅵ♭","Ⅵ","Ⅶ♭","Ⅶ"];
-        var Roman_str_flat_mode2 =  ["①","②♭","②","③♭","③","④","⑤♭","⑤","⑥♭","⑥","⑦♭","⑦"];
-        var i=0;
-        for(;i<Roman_str_flat_mode1.length;i++)
-            if(strtmp==Roman_str_flat_mode1[i])
-                return i;
+    // Function: doRemoveDuplicateNotes
+    //
+    // Removes any duplicate (higher) notes from a chord, operating on mod modulus
+    // Called by the wrapper functions removeDuplicateNotes and removeDuplicateNotes12
+    function doRemoveDuplicateNotes(chord, mod) {
+        var chord_notes = new Array();
 
-        return -1;
-    }    
-    function remove_dup_mod(chord, mod){
-        var chord_notes=new Array();
+        // Confine the notes to mod values (octave or "infinite")
+        for (var i = 0; i < chord.length; i++)
+            chord_notes[i] = chord[i].pitch % mod;
 
-        for(var i=0; i<chord.length; i++)
-            chord_notes[i] = chord[i].pitch%mod; // remove octaves - or not
+        // Sort the notes
+        chord_notes.sort(function(a, b) { return a - b; });
 
-        chord_notes.sort(function(a, b) { return a - b; }); //sort notes
+        // Filter the notes of duplicates
+        var sorted_notes = chord_notes.filter(
+            function(elem, index, self) {
+                return index == self.indexOf(elem);
+            }
+        );
 
-        var sorted_chord_uniq = chord_notes.filter(function(elem, index, self) {
-            return index == self.indexOf(elem);
-        }); //remove duplicates
-
-        return sorted_chord_uniq;
+        return sorted_notes;
     }
-    // ---------- remove duplicate from chord notes (original pitch) --------
-    function remove_dup_mod12(chord){
-        return remove_dup_mod(chord, 12);
+
+    // Function: removeDuplicateNotes12
+    //
+    // Removes any duplicate (higher) notes from a chord, within a single octave
+    // (Wrapper for doRemoveDuplicateNotes)
+    function removeDuplicateNotes12(chord) {
+        return doRemoveDuplicateNotes(chord, 12);
     }
-    // ---------- remove duplicate from chord notes (in single octave) --------
-    function remove_dup(chord){
-        return remove_dup_mod(chord, 10000);
+
+    // Function: removeDuplicateNotes
+    //
+    // Removes any duplicate (higher) notes from a chord, at the original pitch
+    // (Wrapper for doRemoveDuplicateNotes)
+    function removeDuplicateNotes(chord) {
+        // 132 = 12 chromatic notes * 10 octaves from 20Hz-20kHz (C0-C10), plus another octave for good measure (C11)
+        return doRemoveDuplicateNotes(chord, 132);
     }
     
-    function areNotesEqual(chord1, chord2){
-        var a1 = remove_dup(chord1);
-        var a2 = remove_dup(chord2);
-        return a1.length == a2.length && a1.every(function(value, i) { return value === a2[i]})
+    // Function: areNotesEqual
+    //
+    // Checks if the notes in two chords are identical
+    function areNotesEqual(chord1, chord2) {
+        var a1 = removeDuplicateNotes(chord1);
+        var a2 = removeDuplicateNotes(chord2);
+        return a1.length == a2.length && a1.every(function(value, i) { return value === a2[i]});
     }
 
     // ---------- find intervals for all possible positions of the root note ---------- 
-    function find_intervals(sorted_chord_uniq){
-        var n=sorted_chord_uniq.length;
-        var intervals = new Array(n); for(var i=0; i<n; i++) intervals[i]=new Array();
+    // Function: findIntervals
+    //
+    // Finds intervals for all possible positions of the root note in the given chord (unique notes)
+    function findIntervals(sorted_notes) {
+        var n = sorted_notes.length;
+        var intervals = new Array(n);
 
-        for(var root_pos=0; root_pos<n; root_pos++){ //for each position of root note in the chord
-            var idx=-1;
-            for(var i=0; i<n-1; i++){ //get intervals from current "root"
-                var cur_inter = (sorted_chord_uniq[(root_pos+i+1)%n] - sorted_chord_uniq[(root_pos+i)%n])%12;  
-                while(cur_inter<0)
+        for (var i = 0; i < n; i++)
+            intervals[i] = new Array();
+
+        // For each position of root note in the chord
+        for (var root_pos = 0; root_pos < n; root_pos++) {
+            var idx = -1;
+            // Get intervals from current "root"
+            for (var i = 0; i < (n - 1); i++) {
+                var cur_inter = (sorted_notes[(root_pos + i + 1) % n] - sorted_notes[(root_pos + i) % n]) % 12;  
+                // If we're negative, increase the interval by an octave until we're not
+                while(cur_inter < 0)
                     cur_inter+=12;
-                if(cur_inter != 0){// && (idx==-1 || intervals[root_pos][idx] != cur_inter)){   //avoid duplicates and 0 intervals
+
+                // Skip unison intervals (if that somehow happens)
+                if (cur_inter != 0) {
                     idx++;
-                    intervals[root_pos][idx]=cur_inter;
-                    if(idx>0)
-                        intervals[root_pos][idx]+=intervals[root_pos][idx-1];
+                    intervals[root_pos][idx] = cur_inter;
+                    if (idx > 0)
+                        intervals[root_pos][idx] += intervals[root_pos][idx-1];
                 }
             }
-            //debug:
             console.log('\t intervals: ' + intervals[root_pos]);
         }
 
         return intervals;
     }
     
-    function compare_arr(ref_arr, search_elt) { //returns an array of size ref_tab.length
+    // Function: compareArray
+    //
+    // Returns an array of size ref_arr.length with boolean values representing the comparison
+    function compareArray(ref_arr, search_elt) {
         if (ref_arr == null || search_elt == null) return [];
-        var cmp_arr=[], nb_found=0;
-        for(var i=0; i<ref_arr.length; i++){
-            if( search_elt.indexOf(ref_arr[i]) >=0 ){
-                cmp_arr[i]=1;
+        var cmp_arr = [];
+        var nb_found = 0;
+        for (var i = 0; i < ref_arr.length; i++) {
+            if (search_elt.indexOf(ref_arr[i]) >= 0) {
+                cmp_arr[i] = 1;
                 nb_found++;
-            }else{
-                cmp_arr[i]=0;
+            } else {
+                cmp_arr[i] = 0;
             }
         }
         return {
@@ -203,46 +535,68 @@ MuseScore {
         };
     }
         
+    // Function: getChordName
+    //
+    // Gets the actual chord name of a given chord in the given key signature
     function getChordName(chord,keysig) {
-//        var INVERSION_NOTATION = 0; //set to 0: inversions are not shown
-                                    //set to 1: inversions are noted with superscript 1, 2 or 3
-                                    //set to 2: figured bass notation is used instead
-                                
-//        var DISPLAY_BASS_NOTE = 0; //set to 1: bass note is specified after a / like that: C/E for first inversion C chord.
- 
-        //Standard notation for inversions:
-        if(settings.inversion_notation===1){
-            var inversions = ["", " \u00B9", " \u00B2"," \u00B3"," \u2074"," \u2075"," \u2076"," \u2077"," \u2078"," \u2079"]; // unicode for superscript "1", "2", "3" (e.g. to represent C Major first, or second inversion)
+        // Standard notation for inversions
+        if (settings.inversionMode === 1) {
+            // Unicode values for superscript "1", "2", "3" (e.g. to represent C Major first, or second inversion)
+            var inversions = [
+                "", " \u00B9", " \u00B2"," \u00B3"," \u2074"," \u2075"," \u2076"," \u2077"," \u2078"," \u2079"
+            ];
             var inversions_7th = inversions;
 			var inversions_9th  = inversions;
 			var inversions_11th = inversions;
 			var inversions_13th = inversions;
-
-        }else if(settings.inversion_notation===2){//Figured bass of inversions:
-            var inversions = ['', ' \u2076', ' \u2076\u2084','','','','','','',''];
-            var inversions_7th = [' \u2077', ' \u2076\u2085', ' \u2074\u2083', ' \u2074\u2082', ' \u2077-\u2074', ' \u2077-\u2075', ' \u2077-\u2076', ' \u2077-\u2077', ' \u2077-\u2078', ' \u2077-\u2079'];
-			var inversions_9th = [' \u2079', ' inv\u00B9', ' inv\u00B2', ' inv\u00B3',' inv\u2074',' inv\u2075',' inv\u2076',' inv\u2077',' inv\u2078',' inv\u2079'];
-			var inversions_11th = [' \u00B9\u00B9', ' inv\u00B9', ' inv\u00B2', ' inv\u00B3',' inv\u2074',' inv\u2075',' inv\u2076',' inv\u2077',' inv\u2078',' inv\u2079'];
-            var	inversions_13th = [' \u00B9\u00B3', ' inv\u00B9', ' inv\u00B2', ' inv\u00B3',' inv\u2074',' inv\u2075',' inv\u2076',' inv\u2077',' inv\u2078',' inv\u2079'];
-        }else{
-            var inversions      = ["","","","","","","","","",""]; 
-			var inversions_7th  = [" \u2077","","","","","","","","",""]; 
-			var inversions_9th  = [" \u2079","","","","","","","","",""]; 
-			var inversions_11th = [" \u00B9\u00B9","","","","","","","","",""]; 
-			var inversions_13th = [" \u00B9\u00B3","","","","","","","","",""]; 
+        // Figured bass notation for inversions
+        } else if (settings.inversionMode === 2) {
+            var inversions = [
+                '', ' \u2076', ' \u2076\u2084', '', '', '', '', '', '', ''
+            ];
+            var inversions_7th = [
+                ' \u2077', ' \u2076\u2085', ' \u2074\u2083', ' \u2074\u2082', ' \u2077-\u2074', ' \u2077-\u2075', ' \u2077-\u2076', ' \u2077-\u2077', ' \u2077-\u2078', ' \u2077-\u2079'
+            ];
+			var inversions_9th = [
+                ' \u2079', ' inv\u00B9', ' inv\u00B2', ' inv\u00B3',' inv\u2074',' inv\u2075',' inv\u2076',' inv\u2077',' inv\u2078',' inv\u2079'
+            ];
+			var inversions_11th = [
+                ' \u00B9\u00B9', ' inv\u00B9', ' inv\u00B2', ' inv\u00B3',' inv\u2074',' inv\u2075',' inv\u2076',' inv\u2077',' inv\u2078',' inv\u2079'
+            ];
+            var	inversions_13th = [
+                ' \u00B9\u00B3', ' inv\u00B9', ' inv\u00B2', ' inv\u00B3',' inv\u2074',' inv\u2075',' inv\u2076',' inv\u2077',' inv\u2078',' inv\u2079'
+            ];
+        // No notation for inversions (just numericals for the chord type)
+        } else {
+            var inversions      = [
+                "","","","","","","","","",""
+            ]; 
+			var inversions_7th  = [
+                " \u2077","","","","","","","","",""
+            ];
+			var inversions_9th  = [
+                " \u2079","","","","","","","","",""
+            ];
+			var inversions_11th = [
+                " \u00B9\u00B9","","","","","","","","",""
+            ];
+			var inversions_13th = [
+                " \u00B9\u00B3","","","","","","","","",""
+            ];
         }
             
-        var rootNote = null,
-            inversion = null,
-            partial_chord=0;
+        var root_note = null;
+        var inversion = null;
+        var partial_chord = 0;
            
-        // intervals (number of semitones from root note) for main chords types...          //TODO : revoir fonctionnement et identifier d'abord triad, puis seventh ?
+        // intervals (number of semitones from root note) for main chords types...
         //          0    1   2    3        4   5          6      7    8         9     10    11
         // numeric: R,  b9,  9,  m3(#9),  M3, 11(sus4), #11(b5), 5,  #5(b13),  13(6),  7,   M7  //Ziya
         const STR = 0;
         const INTERVALS = 1;
+
+        // List of all (supported) chord types based on their intervals
         const all_chords = [
-            // semi-automatically generated from previous chord_type & chord_str
             [ "",           [4,7] ],            //00: M (0)*
             [ "m",          [3,7] ],            //01: m*
             [ "dim",        [3,6] ],            //02: dim*
@@ -273,64 +627,56 @@ MuseScore {
             [ "7(b9)",      [4,7,10,1] ],       //27: 7(b9) = Dominant Seventh, plus Flattened Ninth*
             [ "7(b13)",     [4,7,10,8] ],       //28: 7(b13) =  Dom. Seventh, Flattened Thirteenth*
             [ "7(b9/b13)",  [4,7,10,1,8] ],     //29: 7(b13b9) =  Dom. Seventh, Flattened Thirteenth, plus Flattened Ninth* 
-            [ "11(b9/b13)", [4,7,10,1,5,8] ],      //30: 7(b13b911) =  Dom. Seventh, Flattened Thirteenth plus Flattenet Ninth, plus Eleventh* 
+            [ "11(b9/b13)", [4,7,10,1,5,8] ],   //30: 7(b13b911) =  Dom. Seventh, Flattened Thirteenth plus Flattenet Ninth, plus Eleventh* 
             [ "7(#9)",      [4,7,10,3] ],       //31: 7(#9) = Dominant Seventh, plus Sharp Ninth*
             [ "m7(11)",     [3,7,10,5] ],       //32: m7(11) = minor Seventh, plus Eleventh*
             [ "m11",        [3,7,10,2,5] ],     //33: m9(11) = minor Seventh, plus Eleventh, plus Ninth* 
             [ "x", [0,0,0] ]                    //34: Dummy
         ];                                               
-        //Notice: [2,7],     //sus2  = Suspended Two // Not recognized; Recognized as 5sus/1 eg. c,d,g = Gsus4/C
-        //Notice: [4,7,9],   //6  = Sixth // Not recognized; Recognized as vim7/1 eg. c,e,g,a = Am7/C
-        //Notice: [3,7,9],   //m6 = Minor Sixth // Not recognized; Recognized as vim7b5/1 eg. c,e,g,a = Am7b5/C
-        //Notice: [4,7,9,2], //6(9) = Nine Sixth //Removed; clashed with m7(11)
-        //Notive: [7],       //1+5 //Removed; has some problems
-                            
-                            //... and associated notation:
-        //var chord_str = ["", "m", "\u00B0", "MM7", "m7", "Mm7", "\u00B07"];
-        // var chord_str = ["", "m", "dim", "sus4",  "7sus4", "Maj7", "m(Maj7)", "m7", "7", "o7", "Maj7(#5)", "7(#5)", "aug", "0", "7(b5)", "(add9)", "Maj9", "9", "m(add9)", "m9(Maj7)", "m9", "Maj7(#11)", "Maj9(#11)", "7(#11)", "9(#11)", "7(13)", "9(13)", "7(b9)","7(b13)", "7(b9/b13)", "11(b9/b13)", "7(#9)", "m7(11)", "m11", "x"];
-        /*var chord_type_reduced = [ [4],  //M
-                                    [3],  //m
-                                    [4,11],   //MM7
-                                    [3,10],   //m7
-                                    [4,10]];  //Mm7
-        var chord_str_reduced = ["", "m", "MM", "m", "Mm"];*/
-        /*var major_scale_chord_type = [[0,3], [1,4], [1,4], [0,3], [0,5], [1,4], [2,6]]; //first index is for triads, second for seventh chords.
-        var minor_scale_chord_type = [[0,4], [2,6], [0,3], [1,4], [0,5], [0,3], [2,6]];*/
 
-        // ---------- SORT CHORD from bass to soprano --------
-        chord.sort(function(a, b) { return (a.pitch) - (b.pitch); }); //bass note is now chord[0]
+        // NOTE: The following possible chord types are disabled:
+        //   [2,7],     //sus2  = Suspended Two // Not recognized; Recognized as 5sus/1 eg. c,d,g = Gsus4/C
+        //   [4,7,9],   //6  = Sixth // Not recognized; Recognized as vim7/1 eg. c,e,g,a = Am7/C
+        //   [3,7,9],   //m6 = Minor Sixth // Not recognized; Recognized as vim7b5/1 eg. c,e,g,a = Am7b5/C
+        //   [4,7,9,2], //6(9) = Nine Sixth //Removed; clashed with m7(11)
+        //   [7],       //1+5 //Removed; has some problems
+
+        // Sort chord from low to high notes
+        chord.sort(function(a, b) { return (a.pitch) - (b.pitch); });
         
-        //debug:
-//        for(var i=0; i<chord.length; i++){
-//            console.log('pitch note ' + i + ': ' + chord[i].pitch + ' -> ' + chord[i].pitch%12);
-//        }   
+        var sorted_notes = removeDuplicateNotes12(chord);
+        var intervals = findIntervals(sorted_notes);
         
-        var sorted_chord_uniq = remove_dup_mod12(chord); //remove multiple occurence of octave notes in chord
-        var intervals = find_intervals(sorted_chord_uniq);
-        
-        //debug:
-        //for(var i=0; i<chord_uniq.length; i++) console.log('pitch note ' + i + ': ' + chord_uniq[i]);
-        // console.log('compare: ' + compare_arr([0,1,2,3,4,5],[1,3,4,2])); //returns [0,1,1,1,1,0}
-        
-        
-        // ---------- Compare intervals with chord types for identification ---------- 
-        var idx_chtype=-1, idx_rootpos=-1, nb_found=0, all_found = false;
-        var idx_chtype_arr=[], idx_rootpos_arr=[], cmp_result_arr=[], nb_found_arr=[];
-        for(var idx_chtype_=0; idx_chtype_<all_chords.length; idx_chtype_++){ //chord types. 
-            for(var idx_rootpos_=0; idx_rootpos_<intervals.length; idx_rootpos_++){ //loop through the intervals = possible root positions
-                var cmp_result = compare_arr(all_chords[idx_chtype_][INTERVALS], intervals[idx_rootpos_]);
-                if(cmp_result.nb_found>0){ //found some intervals
-                    if(cmp_result.nb_found == all_chords[idx_chtype_][INTERVALS].length){ //full chord found!
-                        if(cmp_result.nb_found>nb_found){ //keep chord with maximum number of similar interval
-                            nb_found=cmp_result.nb_found;
-                            idx_rootpos=idx_rootpos_;
-                            idx_chtype=idx_chtype_;
+        // Compare intervals with chord types for identification
+        var idx_chtype = -1;
+        var idx_rootpos = -1;
+        var nb_found = 0;
+        var all_found = false;
+        var idx_chtype_arr = [];
+        var idx_rootpos_arr = [];
+        var cmp_result_arr = [];
+        var nb_found_arr = [];
+        // For each chord type
+        for (var idx_chtype_ = 0; idx_chtype_ < all_chords.length; idx_chtype_++) {
+            // For each interval (possible root position)
+            for (var idx_rootpos_ = 0; idx_rootpos_ < intervals.length; idx_rootpos_++) {
+                // Check if our arrays match
+                var cmp_result = compareArray(all_chords[idx_chtype_][INTERVALS], intervals[idx_rootpos_]);
+                // We found some intervals
+                if (cmp_result.nb_found > 0) {
+                    // A full chord match was found
+                    if (cmp_result.nb_found == all_chords[idx_chtype_][INTERVALS].length) {
+                        // Ensure chord is the "best" found
+                        if (cmp_result.nb_found > nb_found) {
+                            nb_found = cmp_result.nb_found;
+                            idx_rootpos = idx_rootpos_;
+                            idx_chtype = idx_chtype_;
                             if (nb_found == intervals[idx_rootpos_].length)
                                 all_found = true;
-                        } //else
-                            // console.log('!! Something wrong with "chord_type" list');
+                        }
                     }
-                    idx_chtype_arr.push(idx_chtype_); //save partial results
+                    // Save partial result
+                    idx_chtype_arr.push(idx_chtype_);
                     idx_rootpos_arr.push(idx_rootpos_);
                     cmp_result_arr.push(cmp_result.cmp_arr);
                     nb_found_arr.push(cmp_result.nb_found);
@@ -338,179 +684,238 @@ MuseScore {
             }
         }
         
-        if(idx_chtype<0 && idx_chtype_arr.length>0){ //no full chord found, but found partial chords
-            // console.log('other partial chords: '+ idx_chtype_arr);
-            // console.log('root_pos: '+ idx_rootpos_arr);
-            // console.log('cmp_result_arr: '+ cmp_result_arr);
-            nb_found = nb_found_arr.reduce(function(a,c){return Math.max(a,c)});
-            console.log('nb_found',nb_found,'\n   root / chord / result:');
-            for(var i=0; i<cmp_result_arr.length; i++) {
-                if ( nb_found_arr[i]==nb_found )
-                    console.log('    '+idx_rootpos_arr[i]+'/'+all_chords[idx_chtype_arr[i]][INTERVALS]+'/'+cmp_result_arr[i]);
-            }
+        // No full chord was found, so check for partial chords
+        if (idx_chtype < 0 && idx_chtype_arr.length > 0) {
+            nb_found = nb_found_arr.reduce(
+                function(a,c){
+                    return Math.max(a,c)
+                }
+            );
 
-            for(var i=0; i<cmp_result_arr.length; i++){
-                if(cmp_result_arr[i][0]===1 && cmp_result_arr[i][2]===1){ //third and 7th ok (missing 5th)
-                    idx_chtype=idx_chtype_arr[i];
-                    idx_rootpos=idx_rootpos_arr[i];
-                    console.log('3rd + 7th OK!');
+            // Look for a 7th shell voicing (no 5th)
+            for (var i = 0; i < cmp_result_arr.length; i++) {
+                // 3rd and 7th found (missing 5th)
+                if (cmp_result_arr[i][0] === 1 && cmp_result_arr[i][2] === 1) {
+                    idx_chtype = idx_chtype_arr[i];
+                    idx_rootpos = idx_rootpos_arr[i];
                     break;
                 }
             }
-            if(idx_chtype<0){ //still no chord found. Check for third interval only (missing 5th and 7th)
-                for(var i=0; i<cmp_result_arr.length; i++){
-                    if(cmp_result_arr[i][0]===1){ //third ok 
-                        idx_chtype=idx_chtype_arr[i];
-                        idx_rootpos=idx_rootpos_arr[i];
-                        console.log('3rd OK!');
+
+            // Look for a 3rd only
+            if (idx_chtype < 0) {
+                for (var i = 0; i < cmp_result_arr.length; i++) {
+                    // 3rd found
+                    if (cmp_result_arr[i][0] === 1) {
+                        idx_chtype = idx_chtype_arr[i];
+                        idx_rootpos = idx_rootpos_arr[i];
                         break;
                     }
                 }
             }
         }
-        var seventhchord=0;    
+
+        var upper_extension_type = 0;
         
-		if(idx_chtype>=0){
-            console.log('FOUND CHORD number '+ idx_chtype +'! root_pos: '+idx_rootpos);
-            console.log('\t interval: ' + intervals[idx_rootpos]);
+        // If we found at least one chord type
+		if (idx_chtype >= 0) {
+            console.log('Found chord number ' + idx_chtype);
+            console.log('  root position: ' + idx_rootpos);
+            console.log('  interval: ' + intervals[idx_rootpos]);
+
+            // Check what type of chord we have
             if (idx_chtype == 1 || idx_chtype == 2 || idx_chtype == 3 || idx_chtype == 12 ) {
-				seventhchord=0;
+                // No upper extension
+				upper_extension_type = 0;
 			} else if ((idx_chtype >= 4 && idx_chtype <=11) || idx_chtype == 13 || idx_chtype == 14 ) {
-			    seventhchord=1;  //7th
+                // 7th
+			    upper_extension_type = 1;
 			} else if ((idx_chtype >= 15 && idx_chtype <=20) || idx_chtype == 27 || idx_chtype == 31 ) {
-			    seventhchord=2; //9th
+                // 9th
+			    upper_extension_type = 2;
 			} else if ((idx_chtype >= 21 && idx_chtype <=24) || idx_chtype == 32 || idx_chtype == 33) {
-			    seventhchord=3; //11th
+                // 11th
+			    upper_extension_type = 3;
 			} else if (idx_chtype == 25 || idx_chtype ==26 || idx_chtype == 28 || idx_chtype == 29 || idx_chtype == 30 ) {
-			    seventhchord=4; //13th
+                // 13th
+			    upper_extension_type = 4;
 			}
-			console.log('\t SEVENTHCHORD: ' + seventhchord + '\t idx_chtype: '+idx_chtype);
-			rootNote=sorted_chord_uniq[idx_rootpos];
-            console.log('\t rootNote: '+rootNote); //Ziya
-        }else{
+			console.log('  upper extension: ' + upper_extension_type);
+
+			root_note = sorted_notes[idx_rootpos];
+            console.log('  root: ' + root_note);
+        } else {
             console.log('No chord found');
         }
 
-        var colorize = settings.displayChordColor;
-        var regular_chord=[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]; //without NCTs
-        var bass=null; 
-        
-        var chordName='';
-        var chordNameRoman='';
-        if (rootNote !== null) { // ----- the chord was identified
-            for(i=0; i<chord.length; i++){  // ---- color notes and find root note
-                if((chord[i].pitch%12) === (rootNote%12)){  //color root note
+        var colorize = settings.chordColorMode;
+        var regular_chord = [
+            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+        ];
+        var bass = null;
+
+        var chordName = '';
+        var chordNameRoman = '';
+
+        // Chord was identified
+        if (root_note !== null) {
+            // Color notes and find root note
+            for (i = 0; i < chord.length; i++) {
+                // Color root note
+                if ((chord[i].pitch % 12) === (root_note % 12)) {
                     regular_chord[0] = chord[i];
-                    if (colorize) chord[i].color = colorroot; else chord[i].color = black; 
-                    if(bass==null) bass=chord[i];
-                }else if((chord[i].pitch%12) === ((rootNote+all_chords[idx_chtype][INTERVALS][0])%12)){ //third note
+
+                    if (colorize)
+                        chord[i].color = colorroot;
+                    else
+                        chord[i].color = black; 
+
+                    if (bass == null)
+                        bass = chord[i];
+                // Color 3rd
+                } else if ((chord[i].pitch % 12) === ((root_note + all_chords[idx_chtype][INTERVALS][0]) % 12)) {
                     regular_chord[1] = chord[i];
-                    if (colorize) chord[i].color = color3rd; else chord[i].color = black;
-                    if(bass==null) bass=chord[i];
-                }else if(all_chords[idx_chtype][INTERVALS].length>=2 && (chord[i].pitch%12) === ((rootNote+all_chords[idx_chtype][INTERVALS][1])%12)){ //5th
+
+                    if (colorize)
+                        chord[i].color = color3rd;
+                    else
+                        chord[i].color = black;
+
+                    if (bass == null)
+                        bass = chord[i];
+                // Color 5th
+                } else if (all_chords[idx_chtype][INTERVALS].length >= 2 && (chord[i].pitch % 12) === ((root_note + all_chords[idx_chtype][INTERVALS][1]) % 12)) {
                     regular_chord[2] = chord[i];
-                    if (colorize) chord[i].color = color5th; else chord[i].color = black;
-                    if(bass==null) bass=chord[i];
-                }else if(all_chords[idx_chtype][INTERVALS].length>=6 && (chord[i].pitch%12) === ((rootNote+all_chords[idx_chtype][INTERVALS][5])%12)){ //13Other
+
+                    if (colorize)
+                        chord[i].color = color5th;
+                    else
+                        chord[i].color = black;
+
+                    if (bass == null)
+                        bass = chord[i];
+                // Color 13th (other)
+                } else if (all_chords[idx_chtype][INTERVALS].length >= 6 && (chord[i].pitch % 12) === ((root_note + all_chords[idx_chtype][INTERVALS][5]) % 12)) {
                     regular_chord[6] = chord[i];
-                    if (colorize) chord[i].color = colorOth3; else chord[i].color = black;
-                    if(bass==null) bass=chord[i];
-                    //seventhchord=4;
-                }else if(all_chords[idx_chtype][INTERVALS].length>=5 && (chord[i].pitch%12) === ((rootNote+all_chords[idx_chtype][INTERVALS][4])%12)){ //11Other
+
+                    if (colorize)
+                        chord[i].color = colorOth3;
+                    else
+                        chord[i].color = black;
+
+                    if (bass == null)
+                        bass = chord[i];
+                // Color 11th (other)
+                } else if (all_chords[idx_chtype][INTERVALS].length >= 5 && (chord[i].pitch % 12) === ((root_note + all_chords[idx_chtype][INTERVALS][4]) % 12)) {
                     regular_chord[5] = chord[i];
-                    if (colorize) chord[i].color = colorOth2; else chord[i].color = black;
-                    if(bass==null) bass=chord[i];
-                    //seventhchord=3;
-                }else if(all_chords[idx_chtype][INTERVALS].length>=4 && (chord[i].pitch%12) === ((rootNote+all_chords[idx_chtype][INTERVALS][3])%12)){ //9Other
+
+                    if (colorize)
+                        chord[i].color = colorOth2;
+                    else
+                        chord[i].color = black;
+
+                    if (bass == null)
+                        bass = chord[i];
+                // Color 9th (other)
+                } else if (all_chords[idx_chtype][INTERVALS].length >= 4 && (chord[i].pitch % 12) === ((root_note + all_chords[idx_chtype][INTERVALS][3]) % 12)) {
                     regular_chord[4] = chord[i];
-                    if (colorize) chord[i].color = colorOth1; else chord[i].color = black;
-                    if(bass==null) bass=chord[i];
-                    //seventhchord=2;
-                }else if(all_chords[idx_chtype][INTERVALS].length>=3 && (chord[i].pitch%12) === ((rootNote+all_chords[idx_chtype][INTERVALS][2])%12)){ //7th
+
+                    if (colorize)
+                        chord[i].color = colorOth1;
+                    else
+                        chord[i].color = black;
+
+                    if (bass == null)
+                        bass = chord[i];
+                // Color 7th
+                } else if (all_chords[idx_chtype][INTERVALS].length >= 3 && (chord[i].pitch % 12) === ((root_note + all_chords[idx_chtype][INTERVALS][2]) % 12)) {
                     regular_chord[3] = chord[i];
-                    if (colorize) chord[i].color = color7th; else chord[i].color = black;
-                    if(bass==null) bass=chord[i];
-                    //seventhchord=1;
-                }else{      //reset other note color 
-				    //seventhchord='';
+
+                    if (colorize)
+                        chord[i].color = color7th;
+                    else
+                        chord[i].color = black;
+
+                    if (bass == null)
+                        bass = chord[i];
+                // Reset other note color
+                } else {
                     chord[i].color = black; 
                 }
             }
         
-            // ----- find root note //commentted before: Ziya
+            // Find the chord's root note
             var chordRootNote;
-            for(var i=0; i<chord.length; i++){
-                if(chord[i].pitch%12 == rootNote)
+            for (var i = 0; i < chord.length; i++) {
+                if (chord[i].pitch % 12 == root_note)
                     chordRootNote = chord[i];
             }
             
-            // ----- find chord name:
+            // Find the chord's name
             var notename = getNoteName(regular_chord[0].tpc);
             chordName = notename + all_chords[idx_chtype][STR];
             chordNameRoman = getNoteRomanSeq(regular_chord[0].pitch,keysig);
-            console.log(' 382: chordNameRoman1: '+chordNameRoman); 
             chordNameRoman += all_chords[idx_chtype][STR];
-            console.log(' 384: chordNameRoman2: '+chordNameRoman); 
-
-        }else{
-            for(i=0; i<chord.length; i++){
+        } else {
+            for (i = 0; i < chord.length; i++) {
                 chord[i].color = black; 
             }
         }
 
-        // ----- find inversion
-        inv=-1;
-        if (chordName !== ''){ // && inversion !== null) {
-            var bass_pitch=bass.pitch%12;
-            //console.log('bass_pitch: ' + bass_pitch);
-            if(bass_pitch == rootNote){ //Is chord in root position ?
-                inv=0;
-            }else{
-                for(var inv=1; inv<all_chords[idx_chtype][INTERVALS].length+1; inv++){
-                   if(bass_pitch == ((rootNote+all_chords[idx_chtype][INTERVALS][inv-1])%12)) break;
-                   //console.log('note n: ' + ((chord[idx_rootpos].pitch+intervals[idx_rootpos][inv-1])%12));
+        // Find the chord's inversion
+        inversion = -1;
+        if (chordName !== '') {
+            var bass_pitch = bass.pitch % 12;
+
+            // Is the chord in root position?
+            if (bass_pitch == root_note) {
+                inversion = 0;
+            } else {
+                // This is incrementing inversion but will stop when we find the right inversion
+                for (inversion = 1; inversion < all_chords[idx_chtype][INTERVALS].length + 1; inversion++) {
+                   if (bass_pitch == ((root_note + all_chords[idx_chtype][INTERVALS][inversion - 1]) % 12))
+                       break;
                 }
             }
-            console.log('\t inv: ' + inv);
+            console.log('  inversion: ' + inversion);
             
-            
-            // Commented: Both are fixed now -Ziya.
-            
-            if (settings.inversion_notation===1 || settings.inversion_notation===2 ) {
-            if(seventhchord == 0){ //we have a triad:
-                chordName += inversions[inv]; //no inversions for this version.
-                chordNameRoman += inversions[inv]; //no inversions for this version.
-            }else{  //we have a 7th chord 
-                if (seventhchord===4) {
-				chordName += inversions_13th[inv]; 
-                chordNameRoman += inversions_13th[inv];
-				} else if (seventhchord===3) {
-				chordName += inversions_11th[inv]; 
-                chordNameRoman += inversions_11th[inv];
-				} else if (seventhchord===2) {
-				chordName += inversions_9th[inv]; 
-                chordNameRoman += inversions_9th[inv];
-				} else if (seventhchord===1) {
-				chordName += inversions_7th[inv]; 
-                chordNameRoman += inversions_7th[inv];
-				}
-            } 
+            // Set our inversions in those modes
+            if (settings.inversionMode === 1 || settings.inversionMode === 2 ) {
+                // Chord is a triad
+                if (upper_extension_type == 0) {
+                    chordName += inversions[inversion];
+                    chordNameRoman += inversions[inversion];
+                // Chord has upper extensions
+                } else { 
+                    if (upper_extension_type === 4) {
+    				    chordName += inversions_13th[inversion]; 
+                        chordNameRoman += inversions_13th[inversion];
+    				} else if (upper_extension_type === 3) {
+    				    chordName += inversions_11th[inversion]; 
+                        chordNameRoman += inversions_11th[inversion];
+    				} else if (upper_extension_type === 2) {
+    				    chordName += inversions_9th[inversion]; 
+                        chordNameRoman += inversions_9th[inversion];
+    				} else if (upper_extension_type === 1) {
+    				    chordName += inversions_7th[inversion]; 
+                        chordNameRoman += inversions_7th[inversion];
+    				}
+                } 
             }
             
-           // if(bassMode===1 && inv>0){
-             if(settings.display_bass_note==1 && inv>0){
-                chordName+="/"+getNoteName(bass.tpc);
+            if (settings.bassMode == 1 && inversion > 0) {
+                chordName += "/" + getNoteName(bass.tpc);
             }
             
-            if(settings.displayChordMode === 1 ) {
+            if (settings.chordMode === 1 ) {
                 chordName = chordNameRoman;
-            } else if(settings.displayChordMode === 2 ) {
-                chordName += " "+chordNameRoman
+            } else if (settings.chordMode === 2 ) {
+                chordName += " " + chordNameRoman
             }
         }
 
-        if ( ! all_found)
-            console.log(' >> not all notes matched');
+        if (!all_found)
+            console.log('NOTE: Not all notes matched');
 
         return {
             chordName:      chordName,
@@ -518,10 +923,13 @@ MuseScore {
         };
     }
     
+    // Function: getSegmentHarmony
+    //
+    // Get a HARMONY element (Chord symbol) at the given segment if it exists
     function getSegmentHarmony(segment) {
-        //if (segment.segmentType != Segment.ChordRest) 
-        //    return null;
         var aCount = 0;
+        if (!segment.annotations)
+            return null;
         var annotation = segment.annotations[aCount];
         while (annotation) {
             if (annotation.type == Element.HARMONY)
@@ -531,160 +939,121 @@ MuseScore {
         return null;
     } 
     
-    function chordDuration(chord){
-        var duration = chord.globalDuration;    // only from MS 3.5 onwards
-        if ( !duration )
+    // Function: chordDuration
+    //
+    // Get the number of ticks the chord represents
+    function chordDuration(chord) {
+        var duration = chord.globalDuration;
+        if (!duration)
             duration = chord.duration;
         return duration.ticks;
     }
-    function getAllCurrentNotes(cursor, startStaff, endStaff, onlySelected, prev_chord){
+
+    // Function: getAllCurrentNotes
+    //
+    // Gets all notes on the selected stave(s) at the current cursor position
+    function getAllCurrentNotes(cursor, startStaff, endStaff, onlySelected, prev_chord) {
         var full_chord = [];
         var tickLogged = false;
-		// console.log('>>>>> tick ' + cursor.tick);
+
+        // Loop through the staves in inverse order (lowest to highest)
         for (var staff = endStaff; staff >= startStaff; staff--) {
-            for (var voice = 3; voice >=0; voice--) { //Ziya var voice = 3 New! var voice = 6
+            // Loop through the voices in inverse order (lowest to highest, theoretically)
+            for (var voice = 3; voice >= 0; voice--) {
                 var trackLogged = false;
                 cursor.voice = voice;
                 cursor.staffIdx = staff;
-//                if (cursor.element && cursor.element.type != Element.CHORD)
-//					console.log('     IGNORE '+cursor.element.userName()+' s'+staff+' v'+voice+'   duration:'+cursor.element.duration.ticks);
                 if (cursor.element && cursor.element.type == Element.CHORD) {
-					// console.log('     >> s'+staff+' v'+voice+'   duration:'+cursor.element.duration.ticks);
                     var notes = cursor.element.notes;
                     for (var i = 0; i < notes.length; i++) {
                         if (onlySelected && !notes[i].selected)
                             continue;
                         if ( !tickLogged ) {
-                            console.log('>>>>> tick ' + cursor.tick);
                             tickLogged = true;
                         }
                         if ( !trackLogged ) {
-                            console.log('     >> s'+staff+' v'+voice+'   duration:'+chordDuration(cursor.element));
-                            // var act = cursor.element.stam, glo = cursor.element.globalDuration;
-                            // console.log('        (stam?',(act?'def':'undef'),act==undefined, //defined(act),
-                            //                     ') (global?',glo==undefined,glo.numerator,'/'+glo.denominator, glo.ticks);
                             trackLogged = true;
                         }
                         full_chord.push(notes[i]);
-						console.log('       >> pitch:' + notes[i].pitch);
                     }
                 }
             }
         }
+
 		if (prev_chord) {
-//			console.log('   >> prev');
 			for (var i = 0; i < prev_chord.length; i++) {
 				var note = prev_chord[i];
 				var excl = (note.parent.parent.tick + chordDuration(note.parent) > cursor.tick ? "!!!" : "");
-				if (excl && settings.entire_note_duration)
+				if (excl && settings.entireDurationMode)
 					full_chord.push(note);
-//				console.log(excl+'     >> tick:'+note.parent.parent.tick+' len'+note.parent.duration.ticks+' p'+note.pitch);
 			}
 		}
 		
         return full_chord;
     }
     
-/*  Unneeded functions - replaced by function closestNextElement
-    function setCursorToTime(cursor, time){
-        var cur_staff=cursor.staffIdx;
-        cursor.rewind(0);
-        cursor.staffIdx=cur_staff;
-        while (cursor.segment && cursor.tick < curScore.lastSegment.tick + 1) { 
-            var current_time = cursor.tick;
-            if(current_time>=time){
-                return true;
-            }
-            cursor.next();
-        }
-        cursor.rewind(0);
-        cursor.staffIdx=cur_staff;
-        return false;
-    }
-    
-    function next_note(cursor, startStaff, endStaff){
-        var cur_time=cursor.tick;
-        console.log('cur_time: ' + cur_time);
-        var next_time=10000000;
-        var cur_staff=startStaff;
-        for (var staff = startStaff; staff <= endStaff; staff++) {
-            //for (var voice = 0; voice < 4; voice++) {
-                //cursor.voice=0;
-            cursor.staffIdx = staff;
-            setCursorToTime(cursor, cur_time);
-            cursor.next();
-            console.log('tick: ' + cursor.tick);
-            if((next_time<0 || cursor.tick<next_time) && cursor.tick !=0) {
-                next_time=cursor.tick;
-                cur_staff=staff;
-            }
-            //}
-        }
-        console.log('next_time: ' + next_time);
-        cursor.staffIdx = cur_staff;
-        //cursor.next();
-        if(next_time>0 && cursor.tick != next_time){
-            setCursorToTime(cursor, next_time);
-        }
-    }
-  */
-      function setToClosestNextElement(cursor, elemType) {
-        // move cursor to closest next segment with Element elemType, whatever the track
+    // Function: setToClosestNextElement
+    //
+    // Move cursor to closest next segment with Element elemType, whatever the track
+    function setToClosestNextElement(cursor, elemType) {
         var seg = cursor.segment;
         if ( !seg )
             return false;
-        while(seg = seg.next) {
-            // console.log('   next seg: tick='+seg.tick);
+
+        while (seg = seg.next) {
             var tr;
             for (tr = 0; tr < curScore.ntracks; tr++) {
                 var el = seg.elementAt(tr);
-                // if (el) console.log('      track#'+tr+' of type '+el.userName());
                 if (el && el.type == elemType)
                     break;
             }
+
             if (tr < curScore.ntracks) {
                 cursor.track = tr;
                 while (cursor.tick < seg.tick)
                     cursor.next();
-                if (cursor.tick > seg.tick)
-                    console.log('BUG!!! cursor('+cursor.tick+') went beyond seg('+seg.tick+') !!');
-                // console.log('   next cursor seg: tick='+cursor.segment.tick+' of type '+cursor.segment.userName());
                 return true;
-            } else {
-                // console.log('      required element not found');
             }
         }
-        if ( !seg ) {
-            // reached end without finding Element Type
+
+        if (!seg) {
+            // Reached end without finding Element Type
             return false;
         }
     }
 
-    function runsheet() {
-
+    // Function: run
+    //
+    // Main entry point
+    function run() {
+        // Check that we are actually on a score
         if (typeof curScore === 'undefined') {
-            Qt.quit();
+            quit();
         }
-        if (mscoreMajorVersion < 3 
-            || (mscoreMajorVersion == 3 && mscoreMinorVersion < 3)) {
-            // MM: Is there a way to check MS version before dialog is displayed?
-            console.log('This plugin requires MuseScore 3.3 and above');
+
+        // Check the MuseScore version
+        // This plugin version is explicitly not targeting MuseScore 3.x or 2.x
+        if (mscoreMajorVersion < 4) {
+            console.log('This plugin requires MuseScore 4.0 and above');
             return;
         }
 
-        var cursor = curScore.newCursor(),
-            startStaff = 0,
-            endStaff = curScore.nstaves - 1,
-//          endTick,
-            fullScore = (curScore.selection.elements.length <= 1); // ignore accidental note or element
+        var cursor = curScore.newCursor();
+        var startStaff;
+        var endStaff;
+        var endTick;
+        var fullScore = false;
+
+        cursor.rewind(1);
                 
-/*        cursor.rewind(1);
-        
-        if (!cursor.segment) { // no selection
+        // No selection, so process the whole score
+        if (!cursor.segment) {
             fullScore = true;
-            startStaff = 0; // start with 1st staff
-            endStaff = curScore.nstaves - 1; // and end with last
+            startStaff = 0;
+            endStaff = curScore.nstaves - 1;
+        // Selection, process only those staves
         } else {
+            console.log("HERE")
             startStaff = cursor.staffIdx;
             cursor.rewind(2);
             if (cursor.tick === 0) {
@@ -698,317 +1067,92 @@ MuseScore {
             }
             endStaff = cursor.staffIdx;
         }
-        console.log(startStaff + " - " + endStaff + " - " + endTick);*/
-        console.log('startStaff: ' + startStaff);
-        console.log('endStaff: ' + endStaff);
-        console.log('curScore.nstaves: ' + curScore.nstaves);
-/*        console.log('endTick: ' + endTick);
-        console.log('cursor.tick: ' + cursor.tick);
-        console.log('curScore.lastSegment.tick: ' + curScore.lastSegment.tick);
 
-        cursor.rewind(1); // beginning of selection
-        if (fullScore) { // no selection
-            cursor.rewind(0); // beginning of score
+        console.log('Processing chords:');
+        console.log('  start staff: ' + startStaff);
+        console.log('  end staff: ' + endStaff);
+        console.log('  num staves: ' + (endStaff - startStaff));
+        console.log('  cursor tick: ' + cursor.tick);
+        console.log('  end tick: ' + endTick);
+
+        // Move to the beginning of the selection
+        cursor.rewind(1);
+        // ...or to the beginning of the score if needed
+        if (fullScore) {
+            cursor.rewind(0);
         }
+        
+        // Select voice 0
         cursor.voice = 0;
-        cursor.staffIdx = startStaff; //staff;*/
-        cursor.rewind(Cursor.SCORE_START);  // start from beginning of score
+        // Select the starting staff
+        cursor.staffIdx = startStaff;
+
+        // Get the current key signature
         var keySig = cursor.keySignature;
         var keysig_name_major = getNoteName(keySig+7+7);
         var keysig_name_minor = getNoteName(keySig+7+10);
-        console.log('559: keysig: ' + keySig + ' -> '+keysig_name_major+' major or '+keysig_name_minor+' minor.');
+        console.log('  key signature: ' + keySig);
+        console.log('  key: ' + keysig_name_major + ' major/' + keysig_name_minor + ' minor');
         
         var segment;
         var chordName = '';
         var curr_matched_all = false;
         var full_chord = [];
-        while (segment=cursor.segment) { //loop through entire score
-            // FIRST we get all notes on current position of the cursor, for all voices and all staves.
+
+        // Loop through the segments
+        while (segment = cursor.segment && (fullScore || cursor.tick < endTick)) {
+            // Set the previous chord value
             var prev_full_chord = full_chord;
+
+            // Get all notes in the selected staves at the current position
             full_chord = getAllCurrentNotes(cursor, startStaff, endStaff, !fullScore, full_chord);
             
-            if(full_chord.length>0){ //More than 0 notes found!
-                console.log('------');
-                console.log('nb of notes found: ' + full_chord.length);
-                var prev_chordName = chordName, prev_matched_all = curr_matched_all;
-                var gcnRes = getChordName(full_chord,cursor.keySignature);
+            // If 1 or more notes are found...
+            if (full_chord.length > 0) {
+                console.log('Found ' + full_chord.length + ' notes at tick ' + cursor.tick);
+
+                var prev_chordName = chordName;
+                var prev_matched_all = curr_matched_all;
+
+                // Get the chord name
+                var gcnRes = getChordName(full_chord, cursor.keySignature);
                 chordName = gcnRes.chordName;
                 curr_matched_all = gcnRes.matchAllNotes;
-                console.log('\tchordName: ' + chordName + (gcnRes.matchAllNotes?'':partialCodeStr));
 
-                // if (chordName !== '') { //chord has been identified
-                var harmonyText = chordName, harmonyColor = black;
+                console.log('  chord name: ' + chordName);
+
+                var harmonyText = chordName;
+                var harmonyColor = black;
+
                 if (harmonyText && !gcnRes.matchAllNotes) {
-                    if (settings.hidePartialChords)
-                        harmonyText = partialCodeStr;
-                    else
+                    if (settings.partialChordMode)
                         harmonyColor = red;
                 }
+
+                // Get a chord symbol if it exists and replace it
                 var harmony = getSegmentHarmony(segment);
-                if (harmony) { //if chord symbol exists, replace it
-                    //console.log("got harmony " + staffText + " with root: " + harmony.rootTpc + " bass: " + harmony.baseTpc);
+                if (harmony) {
                     harmony.text = harmonyText;
                     harmony.color = harmonyColor;
-                }else{ //chord symbol does not exist, create it
+                // Otherwise create a new one
+                } else {
                     harmony = newElement(Element.HARMONY);
                     harmony.text = harmonyText;
                     harmony.color = harmonyColor;
-                    if (harmonyText != '') { // Only add it if not empty
-                        cursor.add(harmony);
-                    }
+                    cursor.add(harmony);
                 }
 
-                /* when to skip displaying duplicate chord:
-                    - if current and previous fully matched
-                    OR
-                    - if previous chord notes identical to current (NOT mod 12. Really identical)
-                */
-                if((prev_chordName == chordName && prev_matched_all && curr_matched_all)
-                    || areNotesEqual(prev_full_chord, full_chord)){
+                // Skip displaying a duplicate chord if:
+                //  * current and previous fully matched
+                //  * previous chord notes are fully identical to current
+                if ((prev_chordName == chordName && prev_matched_all && curr_matched_all) || areNotesEqual(prev_full_chord, full_chord)) {
                     harmony.text = '';
                 }
-                //console.log("xpos: "+harmony.pos.x+" ypos: "+harmony.pos.y);
-                /*staffText = newElement(Element.STAFF_TEXT);
-                staffText.text = chordName;
-                staffText.pos.x = 0;
-                cursor.add(staffText);*/
-                // }
             }
             
-            if ( !setToClosestNextElement(cursor, Element.CHORD) )
+            // Check if we're at the next element and break (?)
+            if (!setToClosestNextElement(cursor, Element.CHORD))
                 break;
-            //cursor.next();
-            //next_note(cursor, startStaff, endStaff);
         } // end while segment
-        
-        if (fullScore) {
-            var key_str='';
-            if(chordName==keysig_name_major){   //if last chord of score is a I chord => we most probably found the key :-)
-                key_str=keysig_name_major+' major';
-            }else if(chordName==keysig_name_minor){
-                key_str=keysig_name_minor+' minor';
-            }else{
-                console.log('Key not found :-(');
-            }
-            if(key_str!=''){
-                console.log('612: FOUND KEY: '+key_str);
-								
-                /*var staffText = newElement(Element.STAFF_TEXT);
-                staffText.text = key_str+':';
-                staffText.pos.x = -13;
-                staffText.pos.y = -1.5;
-                cursor.rewind(0);
-                cursor.add(staffText);*/
-            }
-        }
-//        Qt.quit();
-    } // end onRun
-
-
-    function showVals () {   // MM: calcVals or findVals may be a better name for this func
-//    for (var i=0; i < chrodMeasure.buttonList.length; i++ ) {
-//      var s = chrodMeasure.buttonList[i];
-//      if (s.checked) {
-//          chordPerMeasure=chrodMeasure.buttonList.length-i;
-//          break;
-//      }
-//    }
-
-//    for (var i=0; i < chordStaff.buttonList.length; i++ ) {
-//      var s = chordStaff.buttonList[i];
-//      if (s.checked) {
-//          chordIdentifyMode=chordStaff.buttonList.length-1-i;
-//          break;
-//      }
-//    }
-    
-    for (var i=0; i < symbolMode.buttonList.length; i++ ) {
-      var s = symbolMode.buttonList[i];
-      if (s.checked) {
-          settings.displayChordMode=symbolMode.buttonList.length-1-i;
-          break;
-      }
-    }
-    
-    for (var i=0; i < bassMode.buttonList.length; i++ ) {
-      var s = bassMode.buttonList[i];
-      if (s.checked) {
-          settings.display_bass_note=bassMode.buttonList.length-1-i;
-          break;
-      }
-    }
-
-
-    for (var i=0; i < chordColorMode.buttonList.length; i++ ) {
-      var s = chordColorMode.buttonList[i];
-      if (s.checked) {
-          settings.displayChordColor=chordColorMode.buttonList.length-1-i;
-          break;
-      }
-    }
-    
-    for (var i=0; i < inversionMode.buttonList.length; i++ ) {
-      var s = inversionMode.buttonList[i];
-      if (s.checked) {
-          settings.inversion_notation=inversionMode.buttonList.length-1-i;
-          break;
-      }
-    }
-
-    for (var i=0; i < durationMode.buttonList.length; i++ ) {
-      var s = durationMode.buttonList[i];
-      if (s.checked) {
-          settings.entire_note_duration=durationMode.buttonList.length-1-i;
-          break;
-      }
-    }
-
-    for (var i=0; i < partialChordMode.buttonList.length; i++ ) {
-      var s = partialChordMode.buttonList[i];
-      if (s.checked) {
-          settings.hidePartialChords=partialChordMode.buttonList.length-1-i;
-          break;
-      }
-    }
-	console.log('hidePartialChords =', settings.hidePartialChords);
-
-//    for (var i=0; i < newScoreMode.buttonList.length; i++ ) {
-//      var s = newScoreMode.buttonList[i];
-//      if (s.checked) {
-//          creatNewChordScore=newScoreMode.buttonList.length-1-i;
-//          break;
-//      }
-//    }
-
-
-    }
-
-/*      function getButtonIndex(buttons, text) { 
-            for (var i = 0; i < buttons.length; i++) {
-                  if (buttons[i].text == text) {
-                        console.log(i)
-                        return i;
-                  }
-            }
-            return -1;
-      }*/
-
-    function objFromIndex(list, index) {
-        return list[list.length-1-index]
-    }
-
-  ColumnLayout {
-      // Left: column of note names
-      // Right: radio buttons in flat/nat/sharp positions
-      id: radioVals
-      anchors.left: Button.right
-
-      RowLayout {
-        id: flatRow1
-        spacing: 20
-        Text  { text:  "  "; font.bold: true }
-      }
-
-      RowLayout {
-        id: symbolMode
-        spacing: 20
-        Text  { text:  "  Symbol:"; font.bold: true }
-        property list<RadioButton> buttonList: [
-          RadioButton { parent: symbolMode;text: "Roman"; exclusiveGroup: rowC },
-          RadioButton { parent: symbolMode;text: "Normal(A-G)"; exclusiveGroup: rowC }
-        ]
-      }
-
-      RowLayout {
-        id: bassMode
-        spacing: 20
-        Text  { text:  "  Bass:"; font.bold: true }
-        property list<RadioButton> buttonList: [
-          RadioButton { parent: bassMode;text: "Yes"; exclusiveGroup: rowD },
-          RadioButton { parent: bassMode;text: "No"; exclusiveGroup: rowD }
-        ]
-      }
-
-      RowLayout {
-        id: inversionMode
-        spacing: 20
-        Text  { text:  "  Inversion:"; font.bold: true }
-        property list<RadioButton> buttonList: [
-          RadioButton { parent: inversionMode;text: "Figured Bass"; exclusiveGroup: rowB },
-          RadioButton { parent: inversionMode;text: "Normal"; exclusiveGroup: rowB },
-          RadioButton { parent: inversionMode;text: "No"; exclusiveGroup: rowB }
-        ]
-      }
-
-      RowLayout {
-        id: chordColorMode
-        spacing: 20
-        Text  { text:  "  Highlight Chord Notes:"; font.bold: true }
-        property list<RadioButton> buttonList: [
-          RadioButton { parent: chordColorMode;text: "Yes"; exclusiveGroup: rowE },
-          RadioButton { parent: chordColorMode;text: "No"; exclusiveGroup: rowE }
-        ]
-      }
-
-      RowLayout {
-        id: partialChordMode
-        spacing: 20
-        Text  { text:  "  On Incomplete Chords:"; font.bold: true }
-        property list<RadioButton> buttonList: [
-          RadioButton { parent: partialChordMode;text: "Show '??'"; exclusiveGroup: rowG },
-          RadioButton { parent: partialChordMode;text: "Suggest"; exclusiveGroup: rowG }
-        ]
-      }
-
-      RowLayout {
-        id: durationMode
-        spacing: 20
-        Text  { text:  "  Use Entire Note Duration:"; font.bold: true }
-        property list<RadioButton> buttonList: [
-          RadioButton { parent: durationMode;text: "Yes"; exclusiveGroup: rowF },
-          RadioButton { parent: durationMode;text: "No"; exclusiveGroup: rowF }
-        ]
-      }
-
-      ExclusiveGroup { id: rowB }
-      ExclusiveGroup { id: rowC }
-      ExclusiveGroup { id: rowD }
-      ExclusiveGroup { id: rowE }
-      ExclusiveGroup { id: rowF }
-      ExclusiveGroup { id: rowG }
-  }
-
-  Button {
-    id: buttonCancel
-    text: qsTr("Cancel")
-    anchors.bottom: chordDialog.bottom
-    anchors.right: chordDialog.right
-    anchors.bottomMargin: 10
-    anchors.rightMargin: 10
-    width: 100
-    height: 40
-    onClicked: {
-      Qt.quit();
-    }
-  }
-
-  Button {
-    id: buttonOK
-    text: qsTr("OK")
-    width: 100
-    height: 40
-    anchors.bottom: chordDialog.bottom
-    anchors.right:  buttonCancel.left
-    anchors.topMargin: 10
-    anchors.bottomMargin: 10
-    onClicked: {
-      showVals();
-      curScore.startCmd();
-      runsheet();
-      curScore.endCmd();
-      Qt.quit();
-    }
-  }
-
+    } // end run
 }
-
