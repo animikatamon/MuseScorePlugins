@@ -30,13 +30,12 @@ This is a new version of the "Chord Identifier Special V3" plugin. See long list
 ### Example
  [inline:ChordIdentifierExample2.png] 
 
-### Installation Guide:
-https://musescore.org/en/handbook/3/plugins#installation
-
 ### Usage Tips  
 - Ctrl-Z will undo all changes at once. So go ahead, try different parameters, see what works best for you!
 - The plugin should  work on any selection you require. For example: only the piano part; everything except the solo, etc.
 
+### What's new in v4.6
+-  Now supports... you guessed it!... MuseScore 4.6
 ### What's new in v3.4
 -  Added “On Incomplete Chords” option
 -  Improve handling of tuplets (in MS 3.5 and above)

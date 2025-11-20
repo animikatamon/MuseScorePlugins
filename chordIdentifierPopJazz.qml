@@ -30,17 +30,20 @@
 //=============================================================================
 
 import MuseScore 3.0
-import QtQuick 2.0
 
-import QtQuick.Layouts 1.0
-import QtQuick.Controls 1.0
-import QtQuick.Dialogs 1.0
-import Qt.labs.settings 1.0
+import QtQuick.Window 2.2
+
+import QtQuick 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Layouts
 
 MuseScore {
-    menuPath: "Plugins.Chords.Chord Identifier (Pop & Jazz)"
+
+	requiresScore: true
     description: 'Identify and add Chord Symbols to score ("Automatic Ctrl-K")'
-    version: "3.4"
+    version: "4.6.1"
+    title: "Chord Identifier (Pop & Jazz)"
+    categoryCode: "composing-arranging-tools"
 
     
 //    pluginType: "dock"
@@ -51,6 +54,12 @@ MuseScore {
     height: 260
     id: chordDialog
     
+    Component.onCompleted : {
+        if (mscoreVersion.major >= 4) {
+            chordDialog.title = "Chord Identifier (Pop & Jazz)";
+        }
+    }
+
     Settings {
         id: settings
         category: "t2"
@@ -79,12 +88,12 @@ MuseScore {
 
     onRun: {
         //  MM: Is this the right place to do initializations?
-        rowB.current = objFromIndex(inversionMode.buttonList, settings.inversion_notation) 
-        rowC.current = objFromIndex(symbolMode.buttonList, settings.displayChordMode) 
-        rowD.current = objFromIndex(bassMode.buttonList, settings.display_bass_note) 
-        rowE.current = objFromIndex(chordColorMode.buttonList, settings.displayChordColor) 
-        rowF.current = objFromIndex(durationMode.buttonList, settings.entire_note_duration)
-        rowG.current = objFromIndex(partialChordMode.buttonList, settings.hidePartialChords)
+        rowB.checkedButton = objFromIndex(inversionMode.buttonList, settings.inversion_notation) 
+        rowC.checkedButton = objFromIndex(symbolMode.buttonList, settings.displayChordMode) 
+        rowD.checkedButton = objFromIndex(bassMode.buttonList, settings.display_bass_note) 
+        rowE.checkedButton = objFromIndex(chordColorMode.buttonList, settings.displayChordColor) 
+        rowF.checkedButton = objFromIndex(durationMode.buttonList, settings.entire_note_duration)
+        rowG.checkedButton = objFromIndex(partialChordMode.buttonList, settings.hidePartialChords)
     }
 
     // ---------- get note name from TPC (Tonal Pitch Class):
@@ -459,14 +468,14 @@ MuseScore {
         }
 
         // ----- find inversion
-        inv=-1;
+        var inv=-1;
         if (chordName !== ''){ // && inversion !== null) {
             var bass_pitch=bass.pitch%12;
             //console.log('bass_pitch: ' + bass_pitch);
             if(bass_pitch == rootNote){ //Is chord in root position ?
                 inv=0;
             }else{
-                for(var inv=1; inv<all_chords[idx_chtype][INTERVALS].length+1; inv++){
+                for(inv=1; inv<all_chords[idx_chtype][INTERVALS].length+1; inv++){
                    if(bass_pitch == ((rootNote+all_chords[idx_chtype][INTERVALS][inv-1])%12)) break;
                    //console.log('note n: ' + ((chord[idx_rootpos].pitch+intervals[idx_rootpos][inv-1])%12));
                 }
@@ -663,10 +672,10 @@ MuseScore {
     function runsheet() {
 
         if (typeof curScore === 'undefined') {
-            Qt.quit();
+            quit();
         }
-        if (mscoreMajorVersion < 3 
-            || (mscoreMajorVersion == 3 && mscoreMinorVersion < 3)) {
+        if (mscoreVersion.major < 3 
+            || (mscoreVersion.major == 3 && mscoreVersion.minor < 3)) {
             // MM: Is there a way to check MS version before dialog is displayed?
             console.log('This plugin requires MuseScore 3.3 and above');
             return;
@@ -750,11 +759,11 @@ MuseScore {
                     harmony.text = harmonyText;
                     harmony.color = harmonyColor;
                 }else{ //chord symbol does not exist, create it
-                    harmony = newElement(Element.HARMONY);
-                    harmony.text = harmonyText;
-                    harmony.color = harmonyColor;
+					harmony = newElement(Element.HARMONY);
                     if (harmonyText != '') { // Only add it if not empty
-                        cursor.add(harmony);
+						cursor.add(harmony);
+						harmony.text = harmonyText;
+						harmony.color = harmonyColor;
                     }
                 }
 
@@ -801,7 +810,7 @@ MuseScore {
                 cursor.add(staffText);*/
             }
         }
-//        Qt.quit();
+//        quit();
     } // end onRun
 
 
@@ -914,8 +923,8 @@ MuseScore {
         spacing: 20
         Text  { text:  "  Symbol:"; font.bold: true }
         property list<RadioButton> buttonList: [
-          RadioButton { parent: symbolMode;text: "Roman"; exclusiveGroup: rowC },
-          RadioButton { parent: symbolMode;text: "Normal(A-G)"; exclusiveGroup: rowC }
+          RadioButton { parent: symbolMode;text: "Roman"; ButtonGroup.group: rowC },
+          RadioButton { parent: symbolMode;text: "Normal(A-G)"; ButtonGroup.group: rowC }
         ]
       }
 
@@ -924,8 +933,8 @@ MuseScore {
         spacing: 20
         Text  { text:  "  Bass:"; font.bold: true }
         property list<RadioButton> buttonList: [
-          RadioButton { parent: bassMode;text: "Yes"; exclusiveGroup: rowD },
-          RadioButton { parent: bassMode;text: "No"; exclusiveGroup: rowD }
+          RadioButton { parent: bassMode;text: "Yes"; ButtonGroup.group: rowD },
+          RadioButton { parent: bassMode;text: "No"; ButtonGroup.group: rowD }
         ]
       }
 
@@ -934,9 +943,9 @@ MuseScore {
         spacing: 20
         Text  { text:  "  Inversion:"; font.bold: true }
         property list<RadioButton> buttonList: [
-          RadioButton { parent: inversionMode;text: "Figured Bass"; exclusiveGroup: rowB },
-          RadioButton { parent: inversionMode;text: "Normal"; exclusiveGroup: rowB },
-          RadioButton { parent: inversionMode;text: "No"; exclusiveGroup: rowB }
+          RadioButton { parent: inversionMode;text: "Figured Bass"; ButtonGroup.group: rowB },
+          RadioButton { parent: inversionMode;text: "Normal"; ButtonGroup.group: rowB },
+          RadioButton { parent: inversionMode;text: "No"; ButtonGroup.group: rowB }
         ]
       }
 
@@ -945,8 +954,8 @@ MuseScore {
         spacing: 20
         Text  { text:  "  Highlight Chord Notes:"; font.bold: true }
         property list<RadioButton> buttonList: [
-          RadioButton { parent: chordColorMode;text: "Yes"; exclusiveGroup: rowE },
-          RadioButton { parent: chordColorMode;text: "No"; exclusiveGroup: rowE }
+          RadioButton { parent: chordColorMode;text: "Yes"; ButtonGroup.group: rowE },
+          RadioButton { parent: chordColorMode;text: "No"; ButtonGroup.group: rowE }
         ]
       }
 
@@ -955,8 +964,8 @@ MuseScore {
         spacing: 20
         Text  { text:  "  On Incomplete Chords:"; font.bold: true }
         property list<RadioButton> buttonList: [
-          RadioButton { parent: partialChordMode;text: "Show '??'"; exclusiveGroup: rowG },
-          RadioButton { parent: partialChordMode;text: "Suggest"; exclusiveGroup: rowG }
+          RadioButton { parent: partialChordMode;text: "Show '??'"; ButtonGroup.group: rowG },
+          RadioButton { parent: partialChordMode;text: "Suggest"; ButtonGroup.group: rowG }
         ]
       }
 
@@ -965,17 +974,17 @@ MuseScore {
         spacing: 20
         Text  { text:  "  Use Entire Note Duration:"; font.bold: true }
         property list<RadioButton> buttonList: [
-          RadioButton { parent: durationMode;text: "Yes"; exclusiveGroup: rowF },
-          RadioButton { parent: durationMode;text: "No"; exclusiveGroup: rowF }
+          RadioButton { parent: durationMode;text: "Yes"; ButtonGroup.group: rowF },
+          RadioButton { parent: durationMode;text: "No"; ButtonGroup.group: rowF }
         ]
       }
 
-      ExclusiveGroup { id: rowB }
-      ExclusiveGroup { id: rowC }
-      ExclusiveGroup { id: rowD }
-      ExclusiveGroup { id: rowE }
-      ExclusiveGroup { id: rowF }
-      ExclusiveGroup { id: rowG }
+      ButtonGroup { id: rowB }
+      ButtonGroup { id: rowC }
+      ButtonGroup { id: rowD }
+      ButtonGroup { id: rowE }
+      ButtonGroup { id: rowF }
+      ButtonGroup { id: rowG }
   }
 
   Button {
@@ -988,7 +997,7 @@ MuseScore {
     width: 100
     height: 40
     onClicked: {
-      Qt.quit();
+      quit();
     }
   }
 
@@ -1006,7 +1015,7 @@ MuseScore {
       curScore.startCmd();
       runsheet();
       curScore.endCmd();
-      Qt.quit();
+      quit();
     }
   }
 
