@@ -17,8 +17,7 @@
 //        make sure to colorize only notes of fully recognized chords (regardless of whether Bass is OK)
 //        stop traversing notes where only older notes are included in selection (what if one of chord notes stops and the other continue?)
 //
-//  Code Repository & Documentation: https://github.com/AniMikatamon/MuseScorePlugins
-//  Code Issues: https://github.com/????/MuseScorePlugins/issues
+//  Code Repository, Documentation, Issues & Requests: https://github.com/AniMikatamon/MuseScorePlugins
 //  
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License version 2
@@ -41,17 +40,19 @@
 //=============================================================================
 
 import MuseScore 3.0
-import QtQuick 2.2
 
-import QtQuick.Layouts 1.0
-import QtQuick.Controls 1.4
-import QtQuick.Dialogs 1.0
-import Qt.labs.settings 1.0
+import QtQuick.Window 2.2
+
+import QtQuick 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Layouts
 
 MuseScore {
-    menuPath: "Plugins.Chords.Barbershop Checker + Chord Analyzer"
+	requiresScore: true
     description: 'Check adherence of arrangement to Barbershop Harmony rules'
-    version: "0.92"
+    version: "4.6.1"
+    title: "Barbershop Checker + Chord Analyzer"
+    categoryCode: "composing-arranging-tools"
     
 //    pluginType: "dock"
 //    dockArea:   "left"
@@ -61,6 +62,12 @@ MuseScore {
     height: 320
     id: chordDialog
     
+    Component.onCompleted : {
+        if (mscoreVersion.major >= 4) {
+            chordDialog.title = "Chord Identifier (Pop & Jazz)";
+        }
+    }
+
     Settings {
         id: settings
         category: "BBScheckerS2"
@@ -543,14 +550,14 @@ MuseScore {
         }*/
 
         // ----- find inversion
-        inv=-1;
+        var inv=-1;
         if (chordName !== ''){ // && inversion !== null) {
             var bass_pitch=bass.pitch%12;
             //console.log('bass_pitch: ' + bass_pitch);
             if(bass_pitch == rootNote){ //Is chord in root position ?
                 inv=0;
             }else{
-                for(var inv=1; inv<all_chords[idx_chtype][INTERVALS].length+1; inv++){
+                for(inv=1; inv<all_chords[idx_chtype][INTERVALS].length+1; inv++){
                 if(bass_pitch == ((rootNote+all_chords[idx_chtype][INTERVALS][inv-1])%12)) break;
                 //console.log('note n: ' + ((chord[idx_rootpos].pitch+intervals[idx_rootpos][inv-1])%12));
                 }
@@ -802,19 +809,20 @@ MuseScore {
             if (isDup)
                 return;
             var newText = newElement(Element.STAFF_TEXT);
+            cursor.add(newText);
             newText.text = errLine.msg;
             newText.color = 'red';
-            cursor.add(newText);
+
         }
     }
 
     function runsheet() {
 
         if (typeof curScore === 'undefined') {
-            Qt.quit();
+            quit();
         }
-        if (mscoreMajorVersion < 3 
-            || (mscoreMajorVersion == 3 && mscoreMinorVersion < 3)) {
+        if (mscoreVersion.major < 3 
+            || (mscoreVersion.major == 3 && mscoreVersion.minor < 3)) {
             // MM: Is there a way to check MS version before dialog is displayed?
             console.log('This plugin requires MuseScore 3.3 and above');
             return;
@@ -880,15 +888,15 @@ MuseScore {
                         harmony.color = harmonyColor;
                     }else{ //chord symbol does not exist, create it
                         harmony = newElement(Element.HARMONY);
+                        cursor.add(harmony);
                         harmony.text = harmonyText;
                         harmony.color = harmonyColor;
                         //console.log("text type:  " + staffText.type);
-                        cursor.add(harmony);
                     }
 
                     /* when to skip displaying duplicate chord:
-                        -̶ i̶f̶ c̶u̶r̶r̶e̶n̶t̶ a̶n̶d̶ p̶r̶e̶v̶i̶o̶u̶s̶ f̶u̶l̶l̶y̶ m̶a̶t̶c̶h̶e̶d̶
-                        O̶R̶
+                        // - NOT HERE!!! if current and previous fully matched
+						OR
                         - if previous chord notes identical to current (NOT mod 12. Really identical)
                     */
                     if(/*(prev_chordName == chordName && prev_matched_all && curr_matched_all)
@@ -935,7 +943,7 @@ MuseScore {
                 cursor.add(staffText);*/
             }
         }
-//        Qt.quit();
+//        quit();
     } // end onRun
 
     function setupChordGroup() {
@@ -1011,7 +1019,7 @@ MuseScore {
         width: 100
         height: 40
         onClicked: {
-            Qt.quit();
+            quit();
         }
     }
 
@@ -1048,12 +1056,12 @@ MuseScore {
             curScore.startCmd();
             runsheet();
             curScore.endCmd();
-            Qt.quit();
+            quit();
         }
     }
     // Keys.onEscapePressed: { // doesn't work
     //         dialog.parent.Window.window.close();
-    //         // Qt.quit();
+    //         // quit();
     // }
 
 }
